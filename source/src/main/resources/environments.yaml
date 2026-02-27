@@ -8,10 +8,10 @@ dtu:
     dev:
       vault-user: dtu
       vault-mount: dtu
-      vault-url: http://localhost:50001
-      queue-url: http://localhost:50010/queue/dev/kafka.yaml
-      oauth-url: http://localhost:50010/security/dev/oauth.yaml
-      datasources-url: http://localhost:50000/databases
+      vault-url: http://localhost:9001
+      queue-url: http://localhost:9002/queue/dev/kafka.yaml
+      oauth-url: http://localhost:9002/security/dev/oauth.yaml
+      datasources-url: http://localhost:9000/databases
 
     test:
       vault-user: dtu

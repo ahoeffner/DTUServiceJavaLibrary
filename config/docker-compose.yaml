@@ -3,7 +3,7 @@ services:
     image: nginx:alpine
     container_name: config
     ports:
-      - "50010:80"
+      - "9002:80"
     volumes:
       - ./mount-point:/usr/share/nginx/html:ro
       - ./header.html:/etc/nginx/includes/header.html:ro
