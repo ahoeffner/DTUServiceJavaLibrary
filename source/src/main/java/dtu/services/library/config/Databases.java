@@ -1,0 +1,154 @@
+package dtu.services.library.config;
+
+import java.util.Map;
+import org.slf4j.Logger;
+import javax.sql.DataSource;
+import org.slf4j.LoggerFactory;
+import jakarta.annotation.PostConstruct;
+import tools.jackson.databind.ObjectMapper;
+import org.springframework.stereotype.Component;
+import tools.jackson.dataformat.yaml.YAMLFactory;
+import org.springframework.web.client.RestClient;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.boot.jdbc.DataSourceBuilder;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
+
+
+@Component
+public class Databases
+{
+    private final Secrets secrets;
+    private final RestClient client;
+    private final GenericApplicationContext context;
+    private static Map<String, Map<String, String>> databases;
+
+    private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+    private static final Logger log = LoggerFactory.getLogger(Databases.class);
+
+
+    private Databases(Secrets secrets, RestClient client, GenericApplicationContext context)
+    {
+        this.client = client;
+        this.context = context;
+        this.secrets = secrets;
+    }
+
+
+    @PostConstruct
+    @SuppressWarnings("unchecked")
+    private void init()
+    {
+        String url = Environment.DATASOURCES_URL;
+
+        if (url != null)
+        {
+           String yaml = client
+                .get()
+                .uri(url)
+                .retrieve()
+                .body(String.class);
+
+            Map<String,Object> response = mapper.readValue(yaml,Map.class);
+            databases = (Map<String, Map<String, String>>) response.get("databases");
+        }
+    }
+
+
+    /**
+     * Call this to register and get a JdbcTemplate
+     */
+    public synchronized JdbcTemplate getJdbcTemplate(String name)
+    {
+        String bean = name + "JdbcTemplate";
+        String tgrbean = name + "Transaction";
+
+        if (context.containsBean(bean))
+            return(context.getBean(bean, JdbcTemplate.class));
+
+        try
+        {
+            log.info("Creating datasource for database "+name);
+
+            Map<String,String> config = databases.get(name);
+            Map<String,String> secrets = this.secrets.getSecrets("databases."+name);
+
+            config = replace(config,secrets);
+
+            DataSource ds = DataSourceBuilder.create().build();
+            MapConfigurationPropertySource properties = new MapConfigurationPropertySource(config);
+
+            Binder binder = new Binder(properties);
+            binder.bind("",Bindable.ofInstance(ds));
+
+            JdbcTemplate template = new JdbcTemplate(ds);
+
+            String test = config.get("test");
+
+            if (test == null || test.isEmpty())
+                throw new Exception("No test query found for database "+name);
+
+            template.execute(test);
+            PlatformTransactionManager tm = new DataSourceTransactionManager(ds);
+
+            context.registerBean(bean, JdbcTemplate.class, () -> template);
+            context.registerBean(tgrbean, PlatformTransactionManager.class, () -> tm);
+
+            return(template);
+        }
+        catch (Exception e)
+        {
+            log.error("Database coonection failed for database: " + name,e);
+            return(null);
+        }
+    }
+
+
+    private Map<String,String> replace(Map<String,String> config, Map<String,String> secrets)
+    {
+        if (secrets == null)
+            return(config);
+
+        for (String key : config.keySet())
+        {
+            String value = config.get(key);
+
+            if (value != null)
+            {
+                value = value.trim();
+
+                if (value.startsWith("${") && value.endsWith("}"))
+                    value = value.substring(2, value.length() - 1);
+
+                value = value.trim();
+
+                if (secrets.containsKey(value))
+                    config.put(key,secrets.get(value));
+            }
+        }
+        return(config);
+    }
+
+
+    @Bean
+    @Primary
+    /**
+     * A dummy bean to prevent Spring
+     * from calling getJdbcTemplate during startup
+     * @return
+     */
+    DataSource dataSource()
+    {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setUrl("jdbc:noop://localhost");
+        return(dataSource);
+    }
+
+}

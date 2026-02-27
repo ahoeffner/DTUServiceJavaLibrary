@@ -1,0 +1,6 @@
+org.springframework.context.ApplicationContextInitializer=\
+    dtu.services.library.config.MetadataInitializer
+
+
+org.springframework.boot.EnvironmentPostProcessor=\
+    dtu.services.library.config.EnvironmentLoader
