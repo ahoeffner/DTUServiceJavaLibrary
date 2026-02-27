@@ -1,0 +1,4 @@
+oauth2:
+  resourceserver:
+    jwt:
+      issuer-uri: https://auth.yourcompany.com/realms/my-realm

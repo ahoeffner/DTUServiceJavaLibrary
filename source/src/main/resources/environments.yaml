@@ -8,11 +8,10 @@ dtu:
     dev:
       vault-user: dtu
       vault-mount: dtu
-      vault-url: http://localhost:50004
-      queue-url: http://localhost:50002/queue/dev/kafka.yaml
-      oauth-url: http://localhost:50002/security/dev/oauth.yaml
-      registry-url: http://localhost:50002/services/dev/endpoints.yaml
-      datasources-url: http://localhost:50002/databases/dev/connections.yaml
+      vault-url: http://localhost:50001
+      queue-url: http://localhost:50010/queue/dev/kafka.yaml
+      oauth-url: http://localhost:50010/security/dev/oauth.yaml
+      datasources-url: http://localhost:50000/databases
 
     test:
       vault-user: dtu
@@ -20,16 +19,14 @@ dtu:
       vault-url: http://vault:8083
       queue-url: http://config/queue/test/kafka.yaml
       oauth-url: http://config/security/test/oauth.yaml
-      registry-url: http://config/services/test/endpoints.yaml
-      datasources-url: http://config/databases/test/connections.yaml
+      datasources-url: http://contracts/databases/test
 
     prod:
       vault-role: k8srole
       vault-user: dtu
       vault-mount: dtu
       queue-url: http://config/queue/prod/kafka.yaml
-      vault-url: http://vault-service.default.svc:8083
+      vault-url: http://vault-service.default.svc
       oauth-url: http://config/security/prod/oauth.yaml
-      registry-url: http://config/services/prod/endpoints.yaml
-      datasources-url: http://config/databases/prod/connections.yaml
+      datasources-url: http://contracts/databases/prod
       k8s-token-path: /var/run/secrets/kubernetes.io/serviceaccount/token
