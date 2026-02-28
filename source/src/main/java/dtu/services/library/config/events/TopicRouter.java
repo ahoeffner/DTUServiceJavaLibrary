@@ -11,15 +11,23 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 import tools.jackson.dataformat.yaml.YAMLFactory;
 import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 
 
 @Component
 class TopicRouter implements BeanPostProcessor
 {
+    private final KafkaListenerEndpointRegistry registry;
     private record HandlerReference(Object bean, Method method) {}
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
     private final Map<String, List<HandlerReference>> routes = new ConcurrentHashMap<>();
     private static final Logger log = LoggerFactory.getLogger(TopicRouter.class);
+
+
+    public TopicRouter(KafkaListenerEndpointRegistry registry)
+    {
+        this.registry = registry;
+    }
 
 
     @Override
@@ -36,6 +44,12 @@ class TopicRouter implements BeanPostProcessor
             }
         }
         return(bean);
+    }
+
+
+    public void stop()
+    {
+        registry.stop();
     }
 
 

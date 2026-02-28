@@ -18,6 +18,7 @@ class QueueListener
 
     @KafkaListener
     (
+        id = "businessWorker",
         topics = "#{topicRouter.getRegisteredTopics()}",
         groupId = "${spring.application.name}"
     )
@@ -25,5 +26,17 @@ class QueueListener
     public void receiveFromQueue(Message message)
     {
         topicRouter.onMessage(message);
+    }
+
+
+    @KafkaListener(
+        id = "lifecycle",
+        topics = "service.lifecycle.announcements",
+        groupId = "#{uniqueInstanceId}"
+    )
+
+    public void receiveLifecycleSignal(Message message)
+    {
+        System.out.println(message.getValue());
     }
 }
