@@ -9,24 +9,18 @@ dtu:
       vault-user: dtu
       vault-mount: dtu
       vault-url: http://localhost:9001
-      queue-url: http://localhost:9002/queue/dev/kafka.yaml
-      oauth-url: http://localhost:9002/security/dev/oauth.yaml
       datasources-url: http://localhost:9000/databases
 
     test:
       vault-user: dtu
       vault-mount: dtu
       vault-url: http://vault:8083
-      queue-url: http://config/queue/test/kafka.yaml
-      oauth-url: http://config/security/test/oauth.yaml
-      datasources-url: http://contracts/databases/test
+      datasources-url: http://contracts/databases
 
     prod:
       vault-role: k8srole
       vault-user: dtu
       vault-mount: dtu
-      queue-url: http://config/queue/prod/kafka.yaml
       vault-url: http://vault-service.default.svc
-      oauth-url: http://config/security/prod/oauth.yaml
-      datasources-url: http://contracts/databases/prod
+      datasources-url: http://contracts/databases
       k8s-token-path: /var/run/secrets/kubernetes.io/serviceaccount/token
