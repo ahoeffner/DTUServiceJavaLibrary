@@ -9,19 +9,13 @@ import org.springframework.kafka.core.*;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import tools.jackson.dataformat.yaml.YAMLFactory;
-<<<<<<< HEAD
-import org.springframework.context.annotation.Bean;
-import org.springframework.core.io.ClassPathResource;
-=======
-import org.springframework.web.client.RestClient;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import dtu.services.library.config.events.DTUEvents;
->>>>>>> f719860c7906f799a8e91a1a927f3c9da77ddb64
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 
 
@@ -31,19 +25,10 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 
 class Kafka
 {
+    private static final Logger log = LoggerFactory.getLogger(Kafka.class);
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-    private static final Logger log = LoggerFactory.getLogger(Secrets.class);
 
 
-<<<<<<< HEAD
-=======
-    public Kafka(RestClient client)
-    {
-        this.client = client;
-    }
-
-
->>>>>>> f719860c7906f799a8e91a1a927f3c9da77ddb64
     @SuppressWarnings("unchecked")
     private Map<String,Object> fetchKafkaConfig()
     {

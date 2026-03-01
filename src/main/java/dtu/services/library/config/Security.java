@@ -1,11 +1,14 @@
 package dtu.services.library.config;
 
-import tools.jackson.databind.JsonNode;
+import java.util.Map;
+import org.slf4j.Logger;
+import java.io.InputStream;
+import org.slf4j.LoggerFactory;
 import jakarta.annotation.PostConstruct;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.dataformat.yaml.YAMLFactory;
-import org.springframework.web.client.RestClient;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.context.annotation.Configuration;
@@ -20,40 +23,30 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 @EnableWebSecurity
 class Security
 {
-    private final RestClient client;
-
     private static String issuer;
-    private static JsonNode oauth;
     private final static ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-
-
-
-    Security(RestClient client)
-    {
-        this.client = client;
-    }
+    private static final Logger log = LoggerFactory.getLogger(Security.class);
 
 
     @PostConstruct
+    @SuppressWarnings("unchecked")
+
     private void init()
     {
-        String url = Environment.OAUTH_URL;
-
-        if (url != null)
+                try
         {
-            String yaml = client
-                .get()
-                .uri(url)
-                .retrieve()
-                .body(String.class);
+            InputStream is = new ClassPathResource("oauth.yaml").getInputStream();
+            Map<String, Object> config = mapper.readValue(is, Map.class);
 
-            oauth = mapper.readTree(yaml);
-
-            issuer = oauth
-                .path("oauth2")
-                .path("resourceserver")
-                .path("jwt")
-                .path("issuer-uri").toString();
+            config = (Map<String, Object>) config.get("oauth");
+            config = (Map<String, Object>) config.get(Environment.TYPE);
+            config = (Map<String, Object>) config.get("resourceserver");
+            config = (Map<String, Object>) config.get("jwt");
+            issuer = (String) config.get("issuer-uri");
+        }
+        catch (Exception e)
+        {
+            log.error("Unable to load oauth settings",e);
         }
     }
 
