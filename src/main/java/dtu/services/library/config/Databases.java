@@ -28,7 +28,7 @@ public class Databases
     private final Secrets secrets;
     private final RestClient client;
     private final GenericApplicationContext context;
-    private static Map<String, Map<String, String>> databases;
+    private static Map<String,Map<String,Object>> databases;
 
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
     private static final Logger log = LoggerFactory.getLogger(Databases.class);
@@ -57,7 +57,7 @@ public class Databases
                 .body(String.class);
 
             Map<String,Object> response = mapper.readValue(yaml,Map.class);
-            databases = (Map<String, Map<String, String>>) response.get("databases");
+            databases = (Map<String,Map<String,Object>>) response.get("databases");
         }
     }
 
@@ -77,8 +77,8 @@ public class Databases
         {
             log.info("Creating datasource for database "+name);
 
-            Map<String,String> config = databases.get(name);
-            Map<String,String> secrets = this.secrets.getSecrets("databases."+name);
+            Map<String,Object> config = (Map<String, Object>) databases.get(name).get(Environment.TYPE);
+            Map<String,String> secrets = this.secrets.getSecrets("databases/"+name+"/"+Environment.TYPE);
 
             config = replace(config,secrets);
 
@@ -90,7 +90,7 @@ public class Databases
 
             JdbcTemplate template = new JdbcTemplate(ds);
 
-            String test = config.get("test");
+            String test = (String) config.get("test");
 
             if (test == null || test.isEmpty())
                 throw new Exception("No test query found for database "+name);
@@ -111,28 +111,31 @@ public class Databases
     }
 
 
-    private Map<String,String> replace(Map<String,String> config, Map<String,String> secrets)
+    private Map<String,Object> replace(Map<String,Object> config, Map<String,String> secrets)
     {
         if (secrets == null)
             return(config);
 
         for (String key : config.keySet())
         {
-            String value = config.get(key);
+            Object value = config.get(key);
 
-            if (value != null)
+            if (value instanceof String)
             {
-                value = value.trim();
+                String sval = (String) value;
 
-                if (value.startsWith("${") && value.endsWith("}"))
-                    value = value.substring(2, value.length() - 1);
+                sval = sval.trim();
 
-                value = value.trim();
+                if (sval.startsWith("${") && sval.endsWith("}"))
+                    sval = sval.substring(2, sval.length() - 1);
 
-                if (secrets.containsKey(value))
-                    config.put(key,secrets.get(value));
+                sval = sval.trim();
+
+                if (secrets.containsKey(sval))
+                    config.put(key,secrets.get(sval));
             }
         }
+
         return(config);
     }
 

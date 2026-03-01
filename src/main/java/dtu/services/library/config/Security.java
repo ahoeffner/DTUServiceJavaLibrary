@@ -21,6 +21,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 
 @Configuration
 @EnableWebSecurity
+
 class Security
 {
     private static String issuer;
@@ -29,19 +30,18 @@ class Security
 
 
     @PostConstruct
-    @SuppressWarnings("unchecked")
-
     private void init()
     {
-                try
+        try
         {
             InputStream is = new ClassPathResource("oauth.yaml").getInputStream();
             Map<String, Object> config = mapper.readValue(is, Map.class);
 
-            config = (Map<String, Object>) config.get("oauth");
-            config = (Map<String, Object>) config.get(Environment.TYPE);
-            config = (Map<String, Object>) config.get("resourceserver");
-            config = (Map<String, Object>) config.get("jwt");
+            config = (Map<String,Object>) config.get("oauth");
+            config = (Map<String,Object>) config.get(Environment.TYPE);
+            config = (Map<String,Object>) config.get("resourceserver");
+            config = (Map<String,Object>) config.get("jwt");
+
             issuer = (String) config.get("issuer-uri");
         }
         catch (Exception e)

@@ -9,7 +9,7 @@ dtu:
       vault-user: dtu
       vault-mount: dtu
       vault-url: http://localhost:9001
-      datasources-url: http://localhost:9000/databases
+      datasources-url: /http://localhost:9000/databases
 
     test:
       vault-user: dtu

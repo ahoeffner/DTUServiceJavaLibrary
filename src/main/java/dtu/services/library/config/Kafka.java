@@ -29,7 +29,6 @@ class Kafka
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
 
-    @SuppressWarnings("unchecked")
     private Map<String,Object> fetchKafkaConfig()
     {
         try
@@ -37,15 +36,15 @@ class Kafka
             InputStream is = new ClassPathResource("kafka.yaml").getInputStream();
             Map<String, Object> config = mapper.readValue(is, Map.class);
 
-            config = (Map<String, Object>) config.get("kafka");
-            config = (Map<String, Object>) config.get(Environment.TYPE);
+            config = (Map<String,Object>) config.get("kafka");
+            config = (Map<String,Object>) config.get(Environment.TYPE);
 
             return(config);
         }
         catch (Exception e)
         {
             log.error("Unable to load kafka settings",e);
-            return(new HashMap<String, Object>());
+            return(new HashMap<String,Object>());
         }
     }
 
