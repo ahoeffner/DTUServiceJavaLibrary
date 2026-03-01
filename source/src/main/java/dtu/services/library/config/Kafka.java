@@ -1,14 +1,23 @@
 package dtu.services.library.config;
 
 import java.util.Map;
+import org.slf4j.Logger;
+import java.util.HashMap;
+import java.io.InputStream;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.*;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import tools.jackson.dataformat.yaml.YAMLFactory;
+<<<<<<< HEAD
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.ClassPathResource;
+=======
 import org.springframework.web.client.RestClient;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import dtu.services.library.config.events.DTUEvents;
+>>>>>>> f719860c7906f799a8e91a1a927f3c9da77ddb64
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -22,23 +31,37 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 
 class Kafka
 {
-    private final RestClient client;
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+    private static final Logger log = LoggerFactory.getLogger(Secrets.class);
 
 
+<<<<<<< HEAD
+=======
     public Kafka(RestClient client)
     {
         this.client = client;
     }
 
 
+>>>>>>> f719860c7906f799a8e91a1a927f3c9da77ddb64
     @SuppressWarnings("unchecked")
     private Map<String,Object> fetchKafkaConfig()
     {
-        String url = Environment.QUEUE_URL;
-        String yaml = client.get().uri(url).retrieve().body(String.class);
-        Map<String, Object> response = mapper.readValue(yaml, Map.class);
-        return((Map<String,Object>) response.get("queue"));
+        try
+        {
+            InputStream is = new ClassPathResource("kafka.yaml").getInputStream();
+            Map<String, Object> config = mapper.readValue(is, Map.class);
+
+            config = (Map<String, Object>) config.get("kafka");
+            config = (Map<String, Object>) config.get(Environment.TYPE);
+
+            return(config);
+        }
+        catch (Exception e)
+        {
+            log.error("Unable to load kafka settings",e);
+            return(new HashMap<String, Object>());
+        }
     }
 
 
