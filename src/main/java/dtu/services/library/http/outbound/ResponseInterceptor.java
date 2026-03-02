@@ -3,17 +3,13 @@ package dtu.services.library.http.outbound;
 
 import org.slf4j.Logger;
 import java.io.IOException;
-
-import javax.crypto.spec.OAEPParameterSpec;
-
 import org.slf4j.LoggerFactory;
 import org.jspecify.annotations.NonNull;
+import dtu.services.library.config.OAuth2;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.core.JacksonException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
-
-import dtu.services.library.config.OAuth2;
 import dtu.services.library.context.ServiceHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.http.client.ClientHttpResponse;
@@ -36,7 +32,7 @@ class ResponseInterceptor implements ClientHttpRequestInterceptor
         String header = null;
         ServiceHeaders headers = ServiceHeaders.getHeaders();
 
-        if (headers == null ||ServiceHeaders.getUser() == null)
+        if (headers == null || ServiceHeaders.getUser() == null)
             return(execution.execute(request, body));
 
 
