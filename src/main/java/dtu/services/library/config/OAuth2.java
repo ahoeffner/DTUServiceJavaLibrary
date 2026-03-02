@@ -29,6 +29,7 @@ public class OAuth2
     private String issuer;
     private String secret;
     private String clientid;
+    private String tokenpath;
 
     private static OAuth2Service oauth;
     private static final ThreadLocal<String> token = new ThreadLocal<>();
@@ -53,7 +54,6 @@ public class OAuth2
     }
 
 
-
     @Bean
     OAuth2Service oauth2Service()
     {
@@ -75,7 +75,6 @@ public class OAuth2
         private String token;
         private long expiryTime = 0;
 
-
         OAuth2Service()
         {
             loadConfig();
@@ -91,10 +90,10 @@ public class OAuth2
                 config = (Map<String, Object>) config.get("oauth2");
                 config = (Map<String, Object>) config.get(Environment.TYPE);
 
-                // Directly populating the outer class fields
                 issuer = (String) config.get("issuer-uri");
                 secret = (String) config.get("client-secret");
                 clientid = (String) config.get("client-id");
+                tokenpath = (String) config.get("token-endpoint");
             }
             catch (Exception e)
             {
@@ -111,16 +110,15 @@ public class OAuth2
 
             try
             {
-                String endpoint = issuer + "/protocol/openid-connect/token";
                 RestClient client = RestClient.create();
 
                 MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
                 formData.add("grant_type", "client_credentials");
-                formData.add("client_id", clientid);
-                formData.add("client_secret", secret);
+                formData.add("scope", "urn:opc:idm:__myscopes__");
 
                 Map<String, Object> response = client.post()
-                        .uri(endpoint)
+                        .uri(tokenpath)
+                        .headers(headers -> headers.setBasicAuth(clientid,secret))
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                         .body(formData)
                         .retrieve()
@@ -136,12 +134,11 @@ public class OAuth2
             }
             catch (Exception e)
             {
-                log.error("Failed to fetch service token", e);
+                log.error("Failed to fetch service token {}",e.getMessage());
                 return(null);
             }
         }
     }
-
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception
