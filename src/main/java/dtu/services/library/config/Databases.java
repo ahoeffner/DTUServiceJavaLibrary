@@ -28,10 +28,9 @@ public class Databases
     private final Secrets secrets;
     private final RestClient client;
     private final GenericApplicationContext context;
-    private static Map<String,Map<String,Object>> databases;
 
-    private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
     private static final Logger log = LoggerFactory.getLogger(Databases.class);
+    private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
 
     private Databases(Secrets secrets, RestClient client, GenericApplicationContext context)
@@ -39,26 +38,6 @@ public class Databases
         this.client = client;
         this.context = context;
         this.secrets = secrets;
-    }
-
-
-    @PostConstruct
-    @SuppressWarnings("unchecked")
-    private void init()
-    {
-        String url = Environment.DATASOURCES_URL;
-
-        if (url != null)
-        {
-           String yaml = client
-                .get()
-                .uri(url)
-                .retrieve()
-                .body(String.class);
-
-            Map<String,Object> response = mapper.readValue(yaml,Map.class);
-            databases = (Map<String,Map<String,Object>>) response.get("databases");
-        }
     }
 
 
@@ -71,13 +50,20 @@ public class Databases
         String tgrbean = name + "Transaction";
 
         if (context.containsBean(bean))
-            return(context.getBean(bean, JdbcTemplate.class));
+            return(context.getBean(bean,JdbcTemplate.class));
 
         try
         {
             log.info("Creating datasource for database "+name);
+            Map<String,Map<String,Object>> definitions = load(name);
 
-            Map<String,Object> config = (Map<String, Object>) databases.get(name).get(Environment.TYPE);
+            if (definitions == null)
+            {
+                log.error("Database '" + name + "' not configured");
+                return(null);
+            }
+
+            Map<String,Object> config = (Map<String,Object>) definitions.get(Environment.TYPE);
             Map<String,String> secrets = this.secrets.getSecrets("databases/"+name+"/"+Environment.TYPE);
 
             config = replace(config,secrets);
@@ -108,6 +94,26 @@ public class Databases
             log.error("Database coonection failed for database: " + name,e);
             return(null);
         }
+    }
+
+
+    private Map<String,Map<String,Object>> load(String name)
+    {
+        String url = Environment.DATASOURCES_URL + "/" + name;
+
+        if (url != null)
+        {
+           String yaml = client
+                .get()
+                .uri(url)
+                .retrieve()
+                .body(String.class);
+
+            Map<String,Object> response = mapper.readValue(yaml,Map.class);
+            return((Map<String,Map<String,Object>>) response.get("properties"));
+        }
+
+        return(null);
     }
 
 

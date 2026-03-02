@@ -1,6 +1,7 @@
 package dtu.services.library.config.events;
 
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 
 
@@ -8,6 +9,8 @@ import org.springframework.kafka.annotation.KafkaListener;
 class QueueListener
 {
     private final TopicRouter topicRouter;
+    @Value("${service.version}") String version;
+    @Value("${spring.application.name}") String service;
 
 
     public QueueListener(TopicRouter router)
@@ -22,7 +25,6 @@ class QueueListener
         topics = "#{topicRouter.getRegisteredTopics()}",
         groupId = "${spring.application.name}"
     )
-
     public void receiveFromQueue(Message message)
     {
         topicRouter.onMessage(message);
@@ -35,8 +37,10 @@ class QueueListener
         groupId = "#{uniqueInstanceId}"
     )
 
+
     public void receiveLifecycleSignal(Message message)
     {
         System.out.println(message.getValue());
+        System.out.println("This service is "+service+" version "+version);
     }
 }

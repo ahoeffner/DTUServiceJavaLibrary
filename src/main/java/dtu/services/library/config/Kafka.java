@@ -29,6 +29,7 @@ class Kafka
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
 
+    @SuppressWarnings("unchecked")
     private Map<String,Object> fetchKafkaConfig()
     {
         try
