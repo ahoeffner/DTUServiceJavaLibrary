@@ -24,38 +24,59 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 
 @Configuration
 @EnableWebSecurity
-class OAuth2
+public class OAuth2
 {
     private String issuer;
     private String secret;
     private String clientid;
 
+    private static OAuth2Service oauth;
+    private static final ThreadLocal<String> token = new ThreadLocal<>();
+
     private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
     private final Logger log = LoggerFactory.getLogger(OAuth2.class);
 
 
-    @Bean
-    public OAuth2Service oauth2Service()
+
+    public static void authenticate()
     {
-        return(new OAuth2Service());
+        if (oauth == null)
+            throw new IllegalStateException("OAuth2 system not initialized");
+
+        token.set(oauth.getServiceToken());
+    }
+
+
+    public static String getToken()
+    {
+        return(token.get());
+    }
+
+
+
+    @Bean
+    OAuth2Service oauth2Service()
+    {
+        oauth = new OAuth2Service();
+        return(oauth);
     }
 
 
     @Bean
     @ConditionalOnProperty(name = "environment.type", havingValue = "prod")
-    public JwtDecoder jwtDecoder()
+    JwtDecoder jwtDecoder()
     {
         return(NimbusJwtDecoder.withIssuerLocation(this.issuer).build());
     }
 
 
-    public class OAuth2Service
+    class OAuth2Service
     {
         private String token;
         private long expiryTime = 0;
 
 
-        public OAuth2Service()
+        OAuth2Service()
         {
             loadConfig();
         }
@@ -83,7 +104,7 @@ class OAuth2
 
 
         @SuppressWarnings("unchecked")
-        public synchronized String getServiceToken()
+        synchronized String getServiceToken()
         {
             if (token != null && System.currentTimeMillis() < expiryTime)
                 return(token);
@@ -116,14 +137,14 @@ class OAuth2
             catch (Exception e)
             {
                 log.error("Failed to fetch service token", e);
-                return null;
+                return(null);
             }
         }
     }
 
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception
+    SecurityFilterChain filterChain(HttpSecurity http) throws Exception
     {
         http.authorizeHttpRequests(auth -> auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll());
 
