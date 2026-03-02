@@ -1,15 +1,14 @@
 oauth2:
   dev:
-    resourceserver:
-      jwt:
-        issuer-uri: https://auth.yourcompany.com/realms/my-realm
+    id: "dtu-services"
+    client-id: dtu-services
+    client-secret: XXXX
+    issuer-uri: https://auth.yourcompany.com/realms/my-realm
 
   test:
-    resourceserver:
-      jwt:
-        issuer-uri: https://auth.yourcompany.com/realms/my-realm
+    id: "dtu-services"
+    issuer-uri: https://auth.yourcompany.com/realms/my-realm
 
   prod:
-    resourceserver:
-      jwt:
-        issuer-uri: https://auth.yourcompany.com/realms/my-realm
+    id: "dtu-services"
+    issuer-uri: https://auth.yourcompany.com/realms/my-realm

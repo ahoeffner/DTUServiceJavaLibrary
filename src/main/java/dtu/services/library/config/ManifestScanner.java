@@ -40,6 +40,15 @@ class ManifestScanner
                         props.put("spring.application.name",service);
                         props.put("service.version",version);
 
+                        Package pkg = ManifestScanner.class.getPackage();
+
+                        String libname = pkg.getImplementationTitle();
+                        String libversion = pkg.getImplementationVersion();
+
+                        props.put("library.name",libname);
+                        props.put("library.version",libversion);
+
+
                         return(props);
                     }
                 }

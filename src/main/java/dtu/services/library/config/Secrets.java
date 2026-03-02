@@ -28,10 +28,7 @@ public class Secrets
     public Map<String,String> getSecrets(String path)
     {
         String mount = Environment.VAULT_MOUNT;
-        String[] parts = path.split("\\.", 2);
-
-        String vpath = parts[0] + "/" + Environment.TYPE + "/" + parts[1];
-        VaultResponse response = vault.opsForKeyValue(mount,KeyValueBackend.KV_2).get(vpath);
+        VaultResponse response = vault.opsForKeyValue(mount,KeyValueBackend.KV_2).get(path);
 
         if (response != null && response.getData() != null)
         {
@@ -39,7 +36,7 @@ public class Secrets
             if (data != null) return(cast(data));
         }
 
-        log.error("Secrets not found at mount: <"+mount+"> with path: <"+vpath+">");
+        log.error("Secrets not found at mount: <"+mount+"> with path: <"+path+">");
         return(null);
     }
 
@@ -51,10 +48,7 @@ public class Secrets
     public String getSecret(String path, String attribute)
     {
         String mount = Environment.VAULT_MOUNT;
-        String[] parts = path.split("\\.", 2);
-
-        String vpath = parts[0] + "/" + Environment.TYPE + "/" + parts[1];
-        VaultResponse response = vault.opsForKeyValue(mount,KeyValueBackend.KV_2).get(vpath);
+        VaultResponse response = vault.opsForKeyValue(mount,KeyValueBackend.KV_2).get(path);
 
         if (response != null && response.getData() != null)
         {
@@ -62,7 +56,7 @@ public class Secrets
             if (data != null) return ((String) data.get(attribute));
         }
 
-        log.error("Secrets not found at mount: <"+mount+"> with path: <"+vpath+">");
+        log.error("Secrets not found at mount: <"+mount+"> with path: <"+path+">");
         return(null);
     }
 

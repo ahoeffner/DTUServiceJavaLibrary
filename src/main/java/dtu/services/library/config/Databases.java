@@ -57,6 +57,7 @@ public class Databases
             log.info("Creating datasource for database "+name);
             Map<String,Map<String,Object>> definitions = load(name);
 
+
             if (definitions == null)
             {
                 log.error("Database '" + name + "' not configured");
@@ -76,7 +77,7 @@ public class Databases
 
             JdbcTemplate template = new JdbcTemplate(ds);
 
-            String test = (String) config.get("test");
+            String test = (String) config.get("jdbc-test");
 
             if (test == null || test.isEmpty())
                 throw new Exception("No test query found for database "+name);
@@ -97,11 +98,12 @@ public class Databases
     }
 
 
+    @SuppressWarnings("unchecked")
     private Map<String,Map<String,Object>> load(String name)
     {
-        String url = Environment.DATASOURCES_URL + "/" + name;
+        String url = Environment.DATASOURCES_URL + "/" + name + ".yaml";
 
-        if (url != null)
+        if (name != null)
         {
            String yaml = client
                 .get()

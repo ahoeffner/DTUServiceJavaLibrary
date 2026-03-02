@@ -25,6 +25,9 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 
 class Kafka
 {
+    @Value("${service.version}")private String version;
+    @Value("${spring.application.name}") private String service;
+
     private static final Logger log = LoggerFactory.getLogger(Kafka.class);
     private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
@@ -88,12 +91,7 @@ class Kafka
 
 
     @Bean
-    public ApplicationRunner sendStartupSignal
-    (
-        DTUEvents events,
-        @Value("${service.version}") String version,
-        @Value("${spring.application.name}") String service
-    )
+    public ApplicationRunner sendStartupSignal(DTUEvents events)
     {
         Map<String, String> payload = Map.of("service_name", service,"version", version);
         return(args -> {events.publish("service.lifecycle.announcements", payload);});
