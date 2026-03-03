@@ -32,24 +32,19 @@ class ManifestScanner
                     // The "Main" JAR manifest will have a Start-Class or Main-Class entry
                     String startClass = attr.getValue("Start-Class");
 
+                    String title = attr.getValue("Implementation-Title");
+                    String version = attr.getValue("Implementation-Version");
+
+                    if ("dtu-service-library".equals(title))
+                    {
+                        props.put("library.name",title);
+                        props.put("library.version",version);
+                    }
+
                     if (startClass != null)
                     {
-                        String service = attr.getValue("Implementation-Title");
-                        String version = attr.getValue("Implementation-Version");
-
-                        props.put("spring.application.name",service);
-                        props.put("service.version",version);
-
-                        Package pkg = ManifestScanner.class.getPackage();
-
-                        String libname = pkg.getImplementationTitle();
-                        String libversion = pkg.getImplementationVersion();
-
-                        props.put("library.name",libname);
-                        props.put("library.version",libversion);
-
-
-                        return(props);
+                        props.put("service.version", version);
+                        props.put("spring.application.name",title);
                     }
                 }
             }

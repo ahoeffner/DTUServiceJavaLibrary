@@ -19,7 +19,9 @@ public class MetricsService
     @Value("${service.version}")
     private String serviceVersion;
 
-    private final String libraryVersion = getLibraryVersion();
+    @Value("${library.version}")
+    private String libraryVersion;
+
     private final Map<String, Map<String, Map<Integer, Stats>>> data = new ConcurrentHashMap<>();
 
 
@@ -72,17 +74,6 @@ public class MetricsService
             .toList();
 
         return(new Metrics(serviceName, serviceVersion, libraryVersion, endpoints));
-    }
-
-
-    private String getLibraryVersion()
-    {
-        String version = this.getClass().getPackage().getImplementationVersion();
-
-        if (version == null || version.isEmpty())
-            return "development";
-
-        return version;
     }
 
 

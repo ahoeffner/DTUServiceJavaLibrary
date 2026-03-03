@@ -8,8 +8,10 @@ import org.springframework.core.Ordered;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import org.springframework.context.annotation.Bean;
+import dtu.services.library.metrics.MetricsService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import dtu.services.library.errors.ServiceResponseErrorHandler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
@@ -25,9 +27,11 @@ class Configuration implements WebMvcConfigurer
 {
     private static final Logger log = LoggerFactory.getLogger(MetadataInitializer.class);
 
-    @Value("${spring.application.name:unknown-service-name}")
+    @Value("${spring.application.name}")
     private String service;
 
+    @Autowired
+    private MetricsService metrics;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry)
@@ -38,7 +42,7 @@ class Configuration implements WebMvcConfigurer
             HandlerInterceptor interceptor = null;
 
             clazz = "dtu.services.library.http.inbound.RequestInterceptor";
-            interceptor = Reflection.newInstance(clazz,this.service);
+            interceptor = Reflection.newInstance(clazz,this.service,this.metrics);
             registry.addInterceptor(interceptor);
 
             clazz = "dtu.services.library.http.inbound.FinalInterceptor";
