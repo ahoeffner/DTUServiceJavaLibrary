@@ -10,8 +10,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import dtu.services.library.context.ServiceHeaders;
 import dtu.services.library.metrics.MetricsService;
-
 import org.springframework.web.servlet.HandlerInterceptor;
+import static org.springframework.web.servlet.HandlerMapping.*;
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
 
@@ -79,7 +79,10 @@ class RequestInterceptor implements HandlerInterceptor
                 kv("path", request.getRequestURI()),
                 kv("time", time));
 
-            metrics.add(request.getRequestURI(),request.getMethod(),response.getStatus(),time);
+            String pattern = (String) request.getAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE);
+
+            String path = (pattern == null) ? request.getRequestURI() : pattern;
+            metrics.add(path,request.getMethod(),response.getStatus(),time);
         }
 
         ServiceContext.clear();
