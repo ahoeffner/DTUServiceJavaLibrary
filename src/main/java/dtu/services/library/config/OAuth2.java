@@ -26,25 +26,29 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 @EnableWebSecurity
 public class OAuth2
 {
+    private String scope;
     private String issuer;
     private String secret;
     private String clientid;
     private String tokenpath;
 
     private static OAuth2Service oauth;
+    private static Map<String, Object> config;
     private static final ThreadLocal<String> token = new ThreadLocal<>();
 
     private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
     private final Logger log = LoggerFactory.getLogger(OAuth2.class);
 
 
-
-    public static void authenticate()
+    public static String authenticate(OAuth2Server system)
     {
         if (oauth == null)
             throw new IllegalStateException("OAuth2 system not initialized");
 
-        token.set(oauth.getServiceToken());
+        String actkn = oauth.getServiceToken(system);
+        token.set(actkn);
+
+        return(actkn);
     }
 
 
@@ -72,7 +76,6 @@ public class OAuth2
 
     class OAuth2Service
     {
-        private String token;
         private long expiryTime = 0;
 
         OAuth2Service()
@@ -86,14 +89,8 @@ public class OAuth2
         {
             try (InputStream is = new ClassPathResource("oauth.yaml").getInputStream())
             {
-                Map<String, Object> config = mapper.readValue(is, Map.class);
+                config = mapper.readValue(is, Map.class);
                 config = (Map<String, Object>) config.get("oauth2");
-                config = (Map<String, Object>) config.get(Environment.TYPE);
-
-                issuer = (String) config.get("issuer-uri");
-                secret = (String) config.get("client-secret");
-                clientid = (String) config.get("client-id");
-                tokenpath = (String) config.get("token-endpoint");
             }
             catch (Exception e)
             {
@@ -103,18 +100,32 @@ public class OAuth2
 
 
         @SuppressWarnings("unchecked")
-        synchronized String getServiceToken()
+        synchronized String getServiceToken(OAuth2Server system)
         {
             if (token != null && System.currentTimeMillis() < expiryTime)
-                return(token);
+                return(token.get());
 
             try
             {
-                RestClient client = RestClient.create();
+                Map<String, Object> entry = config;
+                String[] path = system.toString().split("/");
 
+                for (String p : path) entry = (Map<String, Object>)
+                    entry.get(p);
+
+                entry = (Map<String, Object>) entry.get(Environment.TYPE);
+
+                scope = (String) entry.get("scope");
+                issuer = (String) entry.get("issuer-uri");
+                secret = (String) entry.get("client-secret");
+                clientid = (String) entry.get("client-id");
+                tokenpath = (String) entry.get("token-endpoint");
+
+                RestClient client = RestClient.create();
                 MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+
+                formData.add("scope", scope);
                 formData.add("grant_type", "client_credentials");
-                formData.add("scope", "urn:opc:idm:__myscopes__");
 
                 Map<String, Object> response = client.post()
                         .uri(tokenpath)
@@ -124,13 +135,13 @@ public class OAuth2
                         .retrieve()
                         .body(Map.class);
 
-                this.token = (String) response.get("access_token");
+                String actkn = (String) response.get("access_token");
                 Number expiresIn = (Number) response.get("expires_in");
 
                 if (expiresIn != null)
                     this.expiryTime = System.currentTimeMillis() + (expiresIn.longValue() * 1000) - 60000;
 
-                return(this.token);
+                return(actkn);
             }
             catch (Exception e)
             {
