@@ -9,6 +9,8 @@ import org.jspecify.annotations.Nullable;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import dtu.services.library.context.ServiceHeaders;
+import dtu.services.library.metrics.MetricsService;
+
 import org.springframework.web.servlet.HandlerInterceptor;
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
@@ -16,6 +18,8 @@ import static net.logstash.logback.argument.StructuredArguments.kv;
 class RequestInterceptor implements HandlerInterceptor
 {
     private final String service;
+    private final MetricsService metrics;
+
     private static final Logger log = LoggerFactory.getLogger(RequestInterceptor.class);
 
     private static final List<String> EXCLUDE = List.of
@@ -27,9 +31,10 @@ class RequestInterceptor implements HandlerInterceptor
 
 
 
-    public RequestInterceptor(String service)
+    public RequestInterceptor(String service, MetricsService metrics)
     {
         this.service = service;
+        this.metrics = metrics;
     }
 
 
@@ -73,6 +78,8 @@ class RequestInterceptor implements HandlerInterceptor
                 kv("status", response.getStatus()),
                 kv("path", request.getRequestURI()),
                 kv("time", time));
+
+            metrics.add(request.getRequestURI(),request.getMethod(),response.getStatus(),time);
         }
 
         ServiceContext.clear();
