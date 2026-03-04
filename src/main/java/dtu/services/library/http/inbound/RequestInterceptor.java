@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import dtu.services.library.context.ServiceHeaders;
-import dtu.services.library.metrics.MetricsService;
+import dtu.services.library.metrics.MetricsAggregator;
 import org.springframework.web.servlet.HandlerInterceptor;
 import static org.springframework.web.servlet.HandlerMapping.*;
 import static net.logstash.logback.argument.StructuredArguments.kv;
@@ -18,7 +18,7 @@ import static net.logstash.logback.argument.StructuredArguments.kv;
 class RequestInterceptor implements HandlerInterceptor
 {
     private final String service;
-    private final MetricsService metrics;
+    private final MetricsAggregator metrics;
 
     private static final Logger log = LoggerFactory.getLogger(RequestInterceptor.class);
 
@@ -31,7 +31,7 @@ class RequestInterceptor implements HandlerInterceptor
 
 
 
-    public RequestInterceptor(String service, MetricsService metrics)
+    public RequestInterceptor(String service, MetricsAggregator metrics)
     {
         this.service = service;
         this.metrics = metrics;

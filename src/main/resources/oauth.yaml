@@ -3,7 +3,7 @@ oauth2:
     hcm:
       dev:
         type: "oracle"
-        scope: "https://fa-abcd-dev.fa.ocs.oraclecloud.com:443/All"
+        scope: "https://efzu-dev8.fa.em2.oraclecloud.com:443/offline_access"
         client-id: "8cc619d9660047ffa7e8bcd3823da9ee"
         client-secret: "idcscs-b3c94bfe-88d1-481c-84a4-1d47822800fe"
         issuer-uri: "https://idcs-29860bdceeda4551a4bcab7ae60a83cd.identity.oraclecloud.com"

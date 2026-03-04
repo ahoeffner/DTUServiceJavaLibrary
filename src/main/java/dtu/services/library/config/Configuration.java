@@ -8,7 +8,7 @@ import org.springframework.core.Ordered;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import org.springframework.context.annotation.Bean;
-import dtu.services.library.metrics.MetricsService;
+import dtu.services.library.metrics.MetricsAggregator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +31,7 @@ class Configuration implements WebMvcConfigurer
     private String service;
 
     @Autowired
-    private MetricsService metrics;
+    private MetricsAggregator metrics;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry)

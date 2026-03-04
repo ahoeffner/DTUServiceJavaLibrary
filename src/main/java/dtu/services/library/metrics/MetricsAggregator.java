@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 
 @Service
-public class MetricsService
+public class MetricsAggregator
 {
     @Value("${spring.application.name}")
     private String serviceName;
