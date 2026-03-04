@@ -9,9 +9,7 @@ import org.springframework.kafka.core.*;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import tools.jackson.dataformat.yaml.YAMLFactory;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
-import dtu.services.library.config.events.DTUEvents;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.beans.factory.annotation.Value;
@@ -87,14 +85,6 @@ class Kafka
         ConcurrentKafkaListenerContainerFactory<String,Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         return(factory);
-    }
-
-
-    @Bean
-    public ApplicationRunner sendStartupSignal(DTUEvents events)
-    {
-        Map<String, String> payload = Map.of("service_name", service,"version", version);
-        return(args -> {events.publish("service.lifecycle.announcements", payload);});
     }
 
 
