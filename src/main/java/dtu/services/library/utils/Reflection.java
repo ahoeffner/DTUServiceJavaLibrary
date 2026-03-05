@@ -1,6 +1,7 @@
-package dtu.services.library.config;
+package dtu.services.library.utils;
 
 import java.util.Arrays;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Constructor;
 
@@ -9,7 +10,7 @@ import java.lang.reflect.Constructor;
  * The library uses reflection to hide internal classes from public.
  * Partly to protect users from doing harm, partly to make it easier to use
  */
-class Reflection
+public class Reflection
 {
     /**
      * Dynamically creates an instance using any number of arguments.
@@ -43,6 +44,14 @@ class Reflection
         return(meth.invoke(obj, args));
     }
 
+
+    public static Object getStaticField(String clazz, String field) throws Exception
+    {
+        Class<?> jclazz = Class.forName(clazz);
+        Field jfield = jclazz.getDeclaredField(field);
+        jfield.setAccessible(true);
+        return(jfield.get(null));
+    }
 
     private static Class<?>[] getParameterTypes(Object... args)
     {

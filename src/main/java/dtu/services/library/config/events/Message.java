@@ -1,21 +1,20 @@
 package dtu.services.library.config.events;
 
 
-class Message
+class Message<T>
 {
     private String topic;
-    private Object value;
+    private T payload;
 
     // Jackson needs a non-null default constructor
     public Message() {}
 
-    public Message(String topic, Object value)
+    public Message(String topic, T value)
     {
         this.topic = topic;
-        this.value = value;
+        this.payload = value;
     }
 
-    // Ensure these exist so Jackson can "set" the values
     public String getTopic() { return topic; }
-    public Object getValue() { return value; }
+    public T getPayload() { return payload; }
 }

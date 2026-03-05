@@ -32,6 +32,8 @@ public class OAuth2
     private String clientid;
     private String tokenpath;
 
+    private final Secrets secrets;
+
     private static OAuth2Service oauth;
     private static Map<String, Object> config;
     private static final ThreadLocal<String> token = new ThreadLocal<>();
@@ -40,12 +42,18 @@ public class OAuth2
     private final Logger log = LoggerFactory.getLogger(OAuth2.class);
 
 
-    public static String authenticate(OAuth2Server system)
+    public OAuth2(Secrets secrets)
+    {
+        this.secrets = secrets;
+    }
+
+
+    public static String authenticate(String provider)
     {
         if (oauth == null)
             throw new IllegalStateException("OAuth2 system not initialized");
 
-        String actkn = oauth.getServiceToken(system);
+        String actkn = oauth.getServiceToken(provider);
         token.set(actkn);
 
         return(actkn);
@@ -78,6 +86,7 @@ public class OAuth2
     {
         private long expiryTime = 0;
 
+
         OAuth2Service()
         {
             loadConfig();
@@ -100,7 +109,7 @@ public class OAuth2
 
 
         @SuppressWarnings("unchecked")
-        synchronized String getServiceToken(OAuth2Server system)
+        synchronized String getServiceToken(String provider)
         {
             if (token != null && System.currentTimeMillis() < expiryTime)
                 return(token.get());
@@ -108,17 +117,20 @@ public class OAuth2
             try
             {
                 Map<String, Object> entry = config;
-                String[] path = system.toString().split("/");
+                String[] path = provider.toString().split("/");
 
-                for (String p : path) entry = (Map<String, Object>)
+                for (String p : path) entry = (Map<String,Object>)
                     entry.get(p);
 
                 entry = (Map<String, Object>) entry.get(Environment.TYPE);
+                Map<String,String> auth = secrets.getSecrets("oauth2/"+provider+"/"+Environment.TYPE);
 
                 scope = (String) entry.get("scope");
                 issuer = (String) entry.get("issuer-uri");
-                secret = (String) entry.get("client-secret");
-                clientid = (String) entry.get("client-id");
+
+                secret = (String) auth.get("client-secret");
+                clientid = (String) auth.get("client-id");
+
                 tokenpath = (String) entry.get("token-endpoint");
 
                 RestClient client = RestClient.create();

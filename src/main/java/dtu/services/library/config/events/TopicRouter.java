@@ -72,7 +72,7 @@ class TopicRouter implements BeanPostProcessor
                 Class<?> targetType = handler.method.getParameterTypes()[0];
 
                 // Convert the raw string value back to that object
-                Object payload = mapper.convertValue(message.getValue(), targetType);
+                Object payload = mapper.convertValue(message.getPayload(), targetType);
 
                 handler.method.invoke(handler.bean, payload);
             }

@@ -9,6 +9,8 @@ import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import org.springframework.context.annotation.Bean;
 import dtu.services.library.metrics.MetricsAggregator;
+import dtu.services.library.utils.Reflection;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
