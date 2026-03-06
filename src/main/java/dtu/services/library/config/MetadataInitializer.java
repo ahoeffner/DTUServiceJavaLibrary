@@ -40,7 +40,6 @@ class MetadataInitializer implements ApplicationContextInitializer<ConfigurableA
 
             Environment.OAUTH_URL = resolve(env, "dtu.oauth-url", "dtu.environments." + Environment.TYPE + ".oauth-url");
             Environment.QUEUE_URL = resolve(env, "dtu.queue-url", "dtu.environments." + Environment.TYPE + ".queue-url");
-            Environment.REGISTRY_URL = resolve(env, "dtu.registry-url", "dtu.environments." + Environment.TYPE + ".registry-url");
             Environment.DATASOURCES_URL = resolve(env, "dtu.datasources-url", "dtu.environments." + Environment.TYPE + ".datasources-url");
 
             Environment.K8S_TOKEN_PATH = resolve(env, "dtu.k8s-token-path", "dtu.defaults.k8s-token-path");

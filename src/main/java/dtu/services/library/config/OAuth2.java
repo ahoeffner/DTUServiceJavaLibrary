@@ -2,16 +2,15 @@ package dtu.services.library.config;
 
 import java.util.Map;
 import org.slf4j.Logger;
-import java.io.InputStream;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.util.MultiValueMap;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.web.client.RestClient;
 import tools.jackson.dataformat.yaml.YAMLFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.context.annotation.Configuration;
@@ -26,34 +25,44 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 @EnableWebSecurity
 public class OAuth2
 {
-    private String scope;
-    private String issuer;
-    private String secret;
-    private String clientid;
-    private String tokenpath;
+    private static String issuer;
+    private static Secrets secrets;
 
-    private final Secrets secrets;
-
-    private static OAuth2Service oauth;
-    private static Map<String, Object> config;
     private static final ThreadLocal<String> token = new ThreadLocal<>();
-
-    private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-    private final Logger log = LoggerFactory.getLogger(OAuth2.class);
+    private static final Map<String,OAuth2Service> services = new ConcurrentHashMap<>();
 
 
-    public OAuth2(Secrets secrets)
+    OAuth2(Secrets secrets)
     {
-        this.secrets = secrets;
+        OAuth2.secrets = secrets;
     }
 
 
-    public static String authenticate(String provider)
+    public static void setIncomingProvider(String provider)
     {
-        if (oauth == null)
-            throw new IllegalStateException("OAuth2 system not initialized");
+        OAuth2Service service = services.get(provider);
 
-        String actkn = oauth.getServiceToken(provider);
+        if (service == null)
+        {
+            service = new OAuth2Service(secrets,provider);
+            services.put(provider,service);
+        }
+
+        OAuth2.issuer = service.issuer();
+    }
+
+
+    public static String setOutgoingProvider(String provider)
+    {
+        OAuth2Service service = services.get(provider);
+
+        if (service == null)
+        {
+            service = new OAuth2Service(secrets,provider);
+            services.put(provider,service);
+        }
+
+        String actkn = service.getServiceToken(provider);
         token.set(actkn);
 
         return(actkn);
@@ -67,14 +76,6 @@ public class OAuth2
 
 
     @Bean
-    OAuth2Service oauth2Service()
-    {
-        oauth = new OAuth2Service();
-        return(oauth);
-    }
-
-
-    @Bean
     @ConditionalOnProperty(name = "environment.type", havingValue = "prod")
     JwtDecoder jwtDecoder()
     {
@@ -82,24 +83,49 @@ public class OAuth2
     }
 
 
-    class OAuth2Service
+    static class OAuth2Service
     {
+        private String scope;
+        private String secret;
+        private String issuer;
+        private String clientid;
+        private String tokenpath;
         private long expiryTime = 0;
+        private Map<String,Object> config;
+
+        private final RestClient restclient = RestClient.create();
+        private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        private final Logger log = LoggerFactory.getLogger(OAuth2Service.class);
 
 
-        OAuth2Service()
+        OAuth2Service(Secrets secrets, String provider)
         {
-            loadConfig();
+            loadConfig(provider);
+        }
+
+
+        public String issuer()
+        {
+            return(this.issuer);
         }
 
 
         @SuppressWarnings("unchecked")
-        private void loadConfig()
+        private void loadConfig(String provider)
         {
-            try (InputStream is = new ClassPathResource("oauth.yaml").getInputStream())
+            try
             {
-                config = mapper.readValue(is, Map.class);
-                config = (Map<String, Object>) config.get("oauth2");
+                String uri = Environment.OAUTH_URL + "/" + provider + ".yaml";
+
+                String config = restclient
+                    .get()
+                    .uri(uri)
+                    .retrieve()
+                    .body(String.class);
+
+                this.config = mapper.readValue(config,Map.class);
+                this.config = (Map<String,Object>) this.config.get("oauth2");
+                this.config = (Map<String,Object>) this.config.get(Environment.TYPE);
             }
             catch (Exception e)
             {
@@ -117,11 +143,7 @@ public class OAuth2
             try
             {
                 Map<String, Object> entry = config;
-                String[] path = provider.toString().split("/");
-
-                for (String p : path) entry = (Map<String,Object>)
-                    entry.get(p);
-
+                entry = (Map<String, Object>) entry.get("oauth2");
                 entry = (Map<String, Object>) entry.get(Environment.TYPE);
                 Map<String,String> auth = secrets.getSecrets("oauth2/"+provider+"/"+Environment.TYPE);
 
