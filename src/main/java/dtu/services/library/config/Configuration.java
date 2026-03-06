@@ -6,11 +6,10 @@ import org.slf4j.LoggerFactory;
 import org.jspecify.annotations.NonNull;
 import org.springframework.core.Ordered;
 import org.springframework.http.MediaType;
+import dtu.services.library.utils.Reflection;
 import org.springframework.web.client.RestClient;
 import org.springframework.context.annotation.Bean;
 import dtu.services.library.metrics.MetricsAggregator;
-import dtu.services.library.utils.Reflection;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
