@@ -91,7 +91,7 @@ public class Databases
         }
         catch (Exception e)
         {
-            log.error("Database coonection failed for database: " + name,e);
+            log.error("Database coonection failed for database: " + name);
             return(null);
         }
     }

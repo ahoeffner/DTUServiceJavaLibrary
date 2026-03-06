@@ -9,14 +9,14 @@ dtu:
       vault-user: dtu
       vault-mount: dtu
       vault-url: http://localhost:9001
-      oauth-url: http://localhost:9000/oauth
+      oauth-url: http://localhost:9000/oauth2
       datasources-url: http://localhost:9000/databases
 
     test:
       vault-user: dtu
       vault-mount: dtu
       vault-url: http://vault:8083
-      oauth-url: http://registry/contracts/oauth
+      oauth-url: http://registry/contracts/oauth2
       datasources-url: http://registry/contracts/databases
 
     prod:
@@ -24,6 +24,6 @@ dtu:
       vault-user: dtu
       vault-mount: dtu
       vault-url: http://vault-service.default.svc
-      oauth-url: http://registry/contracts/oauth
+      oauth-url: http://registry/contracts/oauth2
       datasources-url: http://registry/contracts/databases
       k8s-token-path: /var/run/secrets/kubernetes.io/serviceaccount/token

@@ -40,28 +40,18 @@ public class OAuth2
 
     public static void setIncomingProvider(String provider)
     {
-        OAuth2Service service = services.get(provider);
+        OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
 
-        if (service == null)
-        {
-            service = new OAuth2Service(secrets,provider);
-            services.put(provider,service);
-        }
-
+        service.init(provider);
         OAuth2.issuer = service.issuer();
     }
 
 
     public static String setOutgoingProvider(String provider)
     {
-        OAuth2Service service = services.get(provider);
+        OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
 
-        if (service == null)
-        {
-            service = new OAuth2Service(secrets,provider);
-            services.put(provider,service);
-        }
-
+        service.init(provider);
         String actkn = service.getServiceToken(provider);
         token.set(actkn);
 
@@ -79,7 +69,7 @@ public class OAuth2
     @ConditionalOnProperty(name = "environment.type", havingValue = "prod")
     JwtDecoder jwtDecoder()
     {
-        return(NimbusJwtDecoder.withIssuerLocation(this.issuer).build());
+        return(NimbusJwtDecoder.withIssuerLocation(OAuth2.issuer).build());
     }
 
 
@@ -90,7 +80,11 @@ public class OAuth2
         private String issuer;
         private String clientid;
         private String tokenpath;
+
         private long expiryTime = 0;
+        private String cached = null;
+        private boolean initialized = false;
+
         private Map<String,Object> config;
 
         private final RestClient restclient = RestClient.create();
@@ -100,7 +94,6 @@ public class OAuth2
 
         OAuth2Service(Secrets secrets, String provider)
         {
-            loadConfig(provider);
         }
 
 
@@ -110,13 +103,20 @@ public class OAuth2
         }
 
 
+        public synchronized void init(String provider)
+        {
+            if (initialized) return;
+            loadConfig(provider);
+            initialized = true;
+       }
+
         @SuppressWarnings("unchecked")
         private void loadConfig(String provider)
         {
+            String uri = Environment.OAUTH_URL + "/" + provider + ".yaml";
+
             try
             {
-                String uri = Environment.OAUTH_URL + "/" + provider + ".yaml";
-
                 String config = restclient
                     .get()
                     .uri(uri)
@@ -126,10 +126,12 @@ public class OAuth2
                 this.config = mapper.readValue(config,Map.class);
                 this.config = (Map<String,Object>) this.config.get("oauth2");
                 this.config = (Map<String,Object>) this.config.get(Environment.TYPE);
+                if (this.config != null) this.issuer = (String) this.config.get("issuer-uri");
             }
             catch (Exception e)
             {
-                log.error("Unable to load oauth settings", e);
+                services.remove(provider);
+                log.error("Unable to load oauth settings for {} {}",uri,e.getMessage());
             }
         }
 
@@ -137,18 +139,25 @@ public class OAuth2
         @SuppressWarnings("unchecked")
         synchronized String getServiceToken(String provider)
         {
-            if (token != null && System.currentTimeMillis() < expiryTime)
-                return(token.get());
+            if (this.config == null)
+                return(null);
+
+            if (cached != null && System.currentTimeMillis() < expiryTime)
+                return(cached);
 
             try
             {
                 Map<String, Object> entry = config;
-                entry = (Map<String, Object>) entry.get("oauth2");
-                entry = (Map<String, Object>) entry.get(Environment.TYPE);
                 Map<String,String> auth = secrets.getSecrets("oauth2/"+provider+"/"+Environment.TYPE);
 
+                if (auth == null)
+                {
+                    log.error("No secrets found for {}",provider);
+                    services.remove(provider);
+                    return(null);
+                }
+
                 scope = (String) entry.get("scope");
-                issuer = (String) entry.get("issuer-uri");
 
                 secret = (String) auth.get("client-secret");
                 clientid = (String) auth.get("client-id");
@@ -179,7 +188,7 @@ public class OAuth2
             }
             catch (Exception e)
             {
-                log.error("Failed to fetch service token {}",e.getMessage());
+                log.error("Failed to fetch service token for {}: {}", provider, e.getMessage());
                 return(null);
             }
         }
