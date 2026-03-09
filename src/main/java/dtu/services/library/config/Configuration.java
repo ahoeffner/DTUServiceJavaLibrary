@@ -28,6 +28,9 @@ class Configuration implements WebMvcConfigurer
 {
     private static final Logger log = LoggerFactory.getLogger(MetadataInitializer.class);
 
+    @Value("${service.version}")
+    private String version;
+
     @Value("${spring.application.name}")
     private String service;
 
@@ -43,7 +46,7 @@ class Configuration implements WebMvcConfigurer
             HandlerInterceptor interceptor = null;
 
             clazz = "dtu.services.library.http.inbound.RequestInterceptor";
-            interceptor = Reflection.newInstance(clazz,this.service,this.metrics);
+            interceptor = Reflection.newInstance(clazz,this.service,this.version,this.metrics);
             registry.addInterceptor(interceptor);
 
             clazz = "dtu.services.library.http.inbound.FinalInterceptor";

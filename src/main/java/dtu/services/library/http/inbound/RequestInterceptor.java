@@ -18,6 +18,8 @@ import static net.logstash.logback.argument.StructuredArguments.kv;
 class RequestInterceptor implements HandlerInterceptor
 {
     private final String service;
+    private final String version;
+
     private final MetricsAggregator metrics;
 
     private static final Logger log = LoggerFactory.getLogger(RequestInterceptor.class);
@@ -31,9 +33,10 @@ class RequestInterceptor implements HandlerInterceptor
 
 
 
-    public RequestInterceptor(String service, MetricsAggregator metrics)
+    public RequestInterceptor(String service, String version, MetricsAggregator metrics)
     {
         this.service = service;
+        this.version = version;
         this.metrics = metrics;
     }
 
@@ -74,6 +77,7 @@ class RequestInterceptor implements HandlerInterceptor
 
             log.info("Metrics",
                 kv("service",this.service),
+                kv("version",this.version),
                 kv("method", request.getMethod()),
                 kv("status", response.getStatus()),
                 kv("path", request.getRequestURI()),

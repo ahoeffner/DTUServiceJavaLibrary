@@ -45,6 +45,14 @@ public class Reflection
     }
 
 
+    public static Object getField(Object instance, String field) throws Exception
+    {
+        Class<?> jclazz = instance.getClass();
+        Field jfield = jclazz.getDeclaredField(field);
+        jfield.setAccessible(true);
+        return(jfield.get(instance));
+    }
+
     public static Object getStaticField(String clazz, String field) throws Exception
     {
         Class<?> jclazz = Class.forName(clazz);

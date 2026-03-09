@@ -9,8 +9,8 @@ dtu:
       vault-user: dtu
       vault-mount: dtu
       vault-url: http://localhost:9001
-      oauth-url: http://localhost:9000/oauth2
-      datasources-url: http://localhost:9000/databases
+      oauth-url: http://localhost:9000/contracts/oauth2
+      datasources-url: http://localhost:9000/contracts/databases
 
     test:
       vault-user: dtu
