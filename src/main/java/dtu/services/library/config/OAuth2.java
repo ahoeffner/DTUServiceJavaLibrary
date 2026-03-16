@@ -12,11 +12,10 @@ import tools.jackson.dataformat.yaml.YAMLFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 
@@ -25,7 +24,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 @EnableWebSecurity
 public class OAuth2
 {
-    private static String issuer;
     private static Secrets secrets;
 
     private static final ThreadLocal<String> token = new ThreadLocal<>();
@@ -41,9 +39,7 @@ public class OAuth2
     public static void setIncomingProvider(String provider)
     {
         OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
-
         service.init(provider);
-        OAuth2.issuer = service.issuer();
     }
 
 
@@ -53,8 +49,8 @@ public class OAuth2
 
         service.init(provider);
         String actkn = service.getServiceToken(provider);
-        token.set(actkn);
 
+        token.set(actkn);
         return(actkn);
     }
 
@@ -62,14 +58,6 @@ public class OAuth2
     public static String getToken()
     {
         return(token.get());
-    }
-
-
-    @Bean
-    @ConditionalOnProperty(name = "environment.type", havingValue = "prod")
-    JwtDecoder jwtDecoder()
-    {
-        return(NimbusJwtDecoder.withIssuerLocation(OAuth2.issuer).build());
     }
 
 
@@ -85,6 +73,8 @@ public class OAuth2
         private String cached = null;
         private boolean initialized = false;
 
+        private NimbusJwtDecoder decoder;
+        private Map<String,Object> claims;
         private Map<String,Object> config;
 
         private final RestClient restclient = RestClient.create();
@@ -126,7 +116,10 @@ public class OAuth2
                 this.config = mapper.readValue(config,Map.class);
                 this.config = (Map<String,Object>) this.config.get("oauth2");
                 this.config = (Map<String,Object>) this.config.get(Environment.TYPE);
-                if (this.config != null) this.issuer = (String) this.config.get("issuer-uri");
+
+                this.issuer = (String) this.config.get("issuer-uri");
+                this.decoder = NimbusJwtDecoder.withIssuerLocation(this.issuer).build();
+                this.decoder.setJwtValidator(JwtValidators.createDefault());
             }
             catch (Exception e)
             {
@@ -147,7 +140,6 @@ public class OAuth2
 
             try
             {
-                Map<String, Object> entry = config;
                 Map<String,String> auth = secrets.getSecrets("oauth2/"+provider+"/"+Environment.TYPE);
 
                 if (auth == null)
@@ -157,12 +149,12 @@ public class OAuth2
                     return(null);
                 }
 
-                scope = (String) entry.get("scope");
+                scope = (String) this.config.get("scope");
 
                 secret = (String) auth.get("client-secret");
                 clientid = (String) auth.get("client-id");
 
-                tokenpath = (String) entry.get("token-endpoint");
+                tokenpath = (String) this.config.get("token-endpoint");
 
                 RestClient client = RestClient.create();
                 MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
@@ -184,6 +176,12 @@ public class OAuth2
                 if (expiresIn != null)
                     this.expiryTime = System.currentTimeMillis() + (expiresIn.longValue() * 1000) - 60000;
 
+                if (decoder != null)
+                    this.claims = decoder.decode(actkn).getClaims();
+
+                this.cached = actkn;
+
+                System.out.println("!!!!! "+claims+" !!!!!");
                 return(actkn);
             }
             catch (Exception e)

@@ -48,8 +48,6 @@ class ManifestScanner
                     }
                 }
             }
-
-            log.error("Metadata not found (Are you running from an unpackaged IDE?)");
         }
         catch (Exception e)
         {

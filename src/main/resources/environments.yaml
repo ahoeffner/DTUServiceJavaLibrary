@@ -1,5 +1,5 @@
 server:
-  port: 50000
+  port: 9002
 
 dtu:
   deployment-type: ${SERVICE_DEPLOYMENT_TYPE:dev}
