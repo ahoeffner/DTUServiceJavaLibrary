@@ -8,11 +8,17 @@ import tools.jackson.databind.ObjectMapper;
 import org.springframework.util.MultiValueMap;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestTemplate;
+
 import tools.jackson.dataformat.yaml.YAMLFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
@@ -63,6 +69,7 @@ public class OAuth2
 
     static class OAuth2Service
     {
+        private String type;
         private String scope;
         private String secret;
         private String issuer;
@@ -73,7 +80,7 @@ public class OAuth2
         private String cached = null;
         private boolean initialized = false;
 
-        private NimbusJwtDecoder decoder;
+        private JwtDecoder decoder;
         private Map<String,Object> claims;
         private Map<String,Object> config;
 
@@ -117,9 +124,17 @@ public class OAuth2
                 this.config = (Map<String,Object>) this.config.get("oauth2");
                 this.config = (Map<String,Object>) this.config.get(Environment.TYPE);
 
+                this.type = (String) this.config.get("type");
                 this.issuer = (String) this.config.get("issuer-uri");
-                this.decoder = NimbusJwtDecoder.withIssuerLocation(this.issuer).build();
-                this.decoder.setJwtValidator(JwtValidators.createDefault());
+
+                RestTemplate template = new RestTemplate();
+
+                NimbusJwtDecoder decoder = NimbusJwtDecoder
+                    .withJwkSetUri(this.issuer)
+                    .restOperations(template)
+                    .build();
+
+                this.decoder = decoder;
             }
             catch (Exception e)
             {
