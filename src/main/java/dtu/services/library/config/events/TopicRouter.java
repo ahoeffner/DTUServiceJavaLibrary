@@ -10,6 +10,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 import tools.jackson.dataformat.yaml.YAMLFactory;
+import org.springframework.context.annotation.Lazy;
 import dtu.services.library.metrics.MetricsAggregator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -35,7 +36,7 @@ class TopicRouter implements BeanPostProcessor
     private static final Logger log = LoggerFactory.getLogger(TopicRouter.class);
 
 
-    public TopicRouter(KafkaListenerEndpointRegistry registry, MetricsAggregator metrics)
+    public TopicRouter(@Lazy KafkaListenerEndpointRegistry registry, @Lazy MetricsAggregator metrics)
     {
         this.metrics = metrics;
         this.registry = registry;
