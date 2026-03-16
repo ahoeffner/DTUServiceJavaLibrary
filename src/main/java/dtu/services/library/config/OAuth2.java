@@ -8,17 +8,11 @@ import tools.jackson.databind.ObjectMapper;
 import org.springframework.util.MultiValueMap;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestTemplate;
-
 import tools.jackson.dataformat.yaml.YAMLFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.security.config.Customizer;
-import org.springframework.security.oauth2.core.OAuth2TokenValidator;
-import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
@@ -32,8 +26,9 @@ public class OAuth2
 {
     private static Secrets secrets;
 
-    private static final ThreadLocal<String> token = new ThreadLocal<>();
+    private static final ThreadLocal<String> token = new ThreadLocal<String>();
     private static final Map<String,OAuth2Service> services = new ConcurrentHashMap<>();
+    private static final ThreadLocal<Map<String,Object>> claims = new ThreadLocal<Map<String,Object>>();
 
 
     OAuth2(Secrets secrets)
@@ -57,6 +52,8 @@ public class OAuth2
         String actkn = service.getServiceToken(provider);
 
         token.set(actkn);
+        claims.set(service.claims());
+
         return(actkn);
     }
 
@@ -64,6 +61,12 @@ public class OAuth2
     public static String getToken()
     {
         return(token.get());
+    }
+
+
+    public static Map<String,Object> getClaims()
+    {
+        return(claims.get());
     }
 
 
@@ -94,9 +97,21 @@ public class OAuth2
         }
 
 
+        public String type()
+        {
+            return(this.type);
+        }
+
+
         public String issuer()
         {
             return(this.issuer);
+        }
+
+
+        Map<String,Object> claims()
+        {
+            return(this.claims);
         }
 
 
@@ -105,7 +120,8 @@ public class OAuth2
             if (initialized) return;
             loadConfig(provider);
             initialized = true;
-       }
+        }
+
 
         @SuppressWarnings("unchecked")
         private void loadConfig(String provider)
@@ -126,15 +142,7 @@ public class OAuth2
 
                 this.type = (String) this.config.get("type");
                 this.issuer = (String) this.config.get("issuer-uri");
-
-                RestTemplate template = new RestTemplate();
-
-                NimbusJwtDecoder decoder = NimbusJwtDecoder
-                    .withJwkSetUri(this.issuer)
-                    .restOperations(template)
-                    .build();
-
-                this.decoder = decoder;
+                this.decoder = NimbusJwtDecoder.withJwkSetUri(this.issuer).build();
             }
             catch (Exception e)
             {
@@ -195,8 +203,6 @@ public class OAuth2
                     this.claims = decoder.decode(actkn).getClaims();
 
                 this.cached = actkn;
-
-                System.out.println("!!!!! "+claims+" !!!!!");
                 return(actkn);
             }
             catch (Exception e)
