@@ -13,7 +13,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 // Note: This must be registered first in the interceptor chain to ensure it runs even if subsequent interceptors fail.
 // This is guaranteed by the HIGHEST_PRECEDENCE when registered i the Configuration class.
 
-class FinalInterceptor implements HandlerInterceptor
+public class FinalInterceptor implements HandlerInterceptor
 {
     @Override
     public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, @Nullable Exception ex)

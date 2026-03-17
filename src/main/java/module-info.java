@@ -1,8 +1,8 @@
 module dtu.services.library
 {
     // Standard Libraries
-    requires java.sql;
-    requires jakarta.servlet;
+    requires transitive java.sql;
+    requires transitive jakarta.servlet;
 
     // Spring Core & Web
     requires transitive spring.web;
@@ -14,6 +14,7 @@ module dtu.services.library
     requires transitive spring.boot.autoconfigure;
 
     // Security
+    requires spring.vault.core;
     requires transitive spring.security.web;
     requires transitive spring.security.core;
     requires transitive spring.security.config;
@@ -23,11 +24,14 @@ module dtu.services.library
     requires transitive spring.security.oauth2.resource.server;
 
     // Data & Messaging
-    requires spring.tx;
-    requires spring.jdbc;
     requires spring.kafka;
-    requires spring.vault.core;
-    requires spring.integration.core;
+    requires transitive spring.tx;
+    requires transitive spring.jdbc;
+    requires transitive spring.boot.jdbc;
+    requires transitive spring.integration.core;
+
+    // Transformations
+    requires transitive org.mapstruct;
 
     // Json
     requires transitive tools.jackson.core;
@@ -36,12 +40,16 @@ module dtu.services.library
     requires transitive com.fasterxml.jackson.annotation;
 
     // Logging & Utils
-    requires org.slf4j;
+    requires static lombok;
     requires static org.jspecify;
-    requires logstash.logback.encoder;
+    requires transitive org.slf4j;
+    requires transitive logstash.logback.encoder;
 
     // Package Visibility
     exports dtu.services.library.utils;
+    exports dtu.services.library.metrics;
+    exports dtu.services.library.config.events;
+
 
     // Reflection access for Spring and Jackson
     opens dtu.services.library.context to tools.jackson.databind;

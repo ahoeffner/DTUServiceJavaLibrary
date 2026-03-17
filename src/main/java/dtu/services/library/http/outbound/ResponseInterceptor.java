@@ -18,7 +18,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 
-class ResponseInterceptor implements ClientHttpRequestInterceptor
+public class ResponseInterceptor implements ClientHttpRequestInterceptor
 {
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final Logger log = LoggerFactory.getLogger(ResponseInterceptor.class);

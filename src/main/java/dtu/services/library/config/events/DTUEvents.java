@@ -18,7 +18,7 @@ public class DTUEvents
 
     public void publish(String topic, Object payload)
     {
-        Message message = new Message(topic,payload);
+        Message<Object> message = new Message<Object>(topic,payload);
         kafka.send(topic,message);
     }
 }

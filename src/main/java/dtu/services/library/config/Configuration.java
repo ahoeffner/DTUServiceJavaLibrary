@@ -11,8 +11,11 @@ import org.springframework.web.client.RestClient;
 import org.springframework.context.annotation.Bean;
 import dtu.services.library.metrics.MetricsAggregator;
 import org.springframework.beans.factory.annotation.Value;
+import dtu.services.library.http.inbound.FinalInterceptor;
 import org.springframework.web.servlet.HandlerInterceptor;
+import dtu.services.library.http.inbound.RequestInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import dtu.services.library.http.outbound.ResponseInterceptor;
 import dtu.services.library.errors.ServiceResponseErrorHandler;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
@@ -40,17 +43,14 @@ class Configuration implements WebMvcConfigurer
     @Override
     public void addInterceptors(InterceptorRegistry registry)
     {
+        HandlerInterceptor interceptor = null;
+
         try
         {
-            String clazz = null;
-            HandlerInterceptor interceptor = null;
-
-            clazz = "dtu.services.library.http.inbound.RequestInterceptor";
-            interceptor = Reflection.newInstance(clazz,this.service,this.version,this.metrics);
+            interceptor = new RequestInterceptor(this.service,this.version,this.metrics);
             registry.addInterceptor(interceptor);
 
-            clazz = "dtu.services.library.http.inbound.FinalInterceptor";
-            interceptor = Reflection.newInstance(clazz);
+            interceptor = new FinalInterceptor();
             registry.addInterceptor(interceptor).order(Ordered.HIGHEST_PRECEDENCE);
         }
         catch (Exception e)
@@ -66,10 +66,8 @@ class Configuration implements WebMvcConfigurer
     {
         try
         {
-            String clazz = null;
             ClientHttpRequestInterceptor interceptor = null;
-            clazz = "dtu.services.library.http.outbound.ResponseInterceptor";
-            interceptor = Reflection.newInstance(clazz);
+            interceptor = new ResponseInterceptor();
             return(interceptor);
         }
         catch (Exception e)

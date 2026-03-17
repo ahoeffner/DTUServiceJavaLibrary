@@ -16,7 +16,7 @@ import static org.springframework.web.servlet.HandlerMapping.*;
 import static net.logstash.logback.argument.StructuredArguments.kv;
 
 
-class RequestInterceptor implements HandlerInterceptor
+public class RequestInterceptor implements HandlerInterceptor
 {
     private final String service;
     private final String version;

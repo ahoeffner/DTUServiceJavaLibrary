@@ -19,9 +19,12 @@
 
     <properties>
         <java.version>25</java.version>
+        <lombok.version>1.18.42</lombok.version>
         <spring-boot.version>4.0.2</spring-boot.version>
         <spring-vault.version>4.0.0</spring-vault.version>
         <spring-cloud.version>5.0.1</spring-cloud.version>
+        <org-mapstruct.version>1.6.3</org-mapstruct.version>
+        <jakarta-servlet.version>6.1.0</jakarta-servlet.version>
         <logstash-logback.version>9.0</logstash-logback.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
@@ -50,7 +53,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -119,7 +121,19 @@
         <dependency>
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>
-            <version>6.1.0</version> <scope>provided</scope>
+            <version>${jakarta-servlet.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${org-mapstruct.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
         </dependency>
 
         <dependency>
@@ -155,8 +169,7 @@
                 <configuration>
                     <release>${java.version}</release>
                     <compilerArgs>
-                        <arg>--add-reads</arg>
-                        <arg>dtu.services.library=ALL-UNNAMED</arg>
+                        <arg>-Xlint:-requires-transitive-automatic</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
