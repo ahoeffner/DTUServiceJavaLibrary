@@ -1,6 +1,6 @@
-package dtu.services.library.http.inbound;
+package dtu.services.library.context;
 
-class ServiceContext
+public class ServiceContext
 {
     private Long start = System.currentTimeMillis();
     private static final ThreadLocal<ServiceContext> client = new ThreadLocal<>();

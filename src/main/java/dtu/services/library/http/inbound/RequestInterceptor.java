@@ -8,6 +8,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import dtu.services.library.context.ServiceContext;
 import dtu.services.library.context.ServiceHeaders;
 import dtu.services.library.metrics.MetricsAggregator;
 import org.springframework.web.servlet.HandlerInterceptor;

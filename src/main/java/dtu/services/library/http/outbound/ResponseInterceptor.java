@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import org.jspecify.annotations.NonNull;
 import dtu.services.library.config.OAuth2;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.core.JacksonException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
 import dtu.services.library.context.ServiceHeaders;
@@ -44,7 +43,7 @@ class ResponseInterceptor implements ClientHttpRequestInterceptor
                 request.getHeaders().add(ServiceHeaders.HEADER, header);
 
             }
-            catch (JacksonException e)
+            catch (Exception e)
             {
                 log.error("Cannot parse header",e);
             }
