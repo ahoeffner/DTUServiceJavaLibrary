@@ -1,4 +1,4 @@
-package dtu.services.library.config.events;
+package dtu.services.library.events;
 
 
 class Message<T>

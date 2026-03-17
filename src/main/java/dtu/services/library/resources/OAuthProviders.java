@@ -1,4 +1,4 @@
-package dtu.services.library.config;
+package dtu.services.library.resources;
 
 import java.util.Map;
 import org.slf4j.Logger;
@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.util.MultiValueMap;
 import java.util.concurrent.ConcurrentHashMap;
+import dtu.services.library.config.Environment;
 import org.springframework.web.client.RestClient;
 import tools.jackson.dataformat.yaml.YAMLFactory;
 import org.springframework.context.annotation.Bean;
@@ -22,7 +23,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 
 @Configuration
 @EnableWebSecurity
-public class OAuth2
+public class OAuthProviders
 {
     private static Secrets secrets;
 
@@ -31,20 +32,20 @@ public class OAuth2
     private static final ThreadLocal<Map<String,Object>> claims = new ThreadLocal<Map<String,Object>>();
 
 
-    OAuth2(Secrets secrets)
+    OAuthProviders(Secrets secrets)
     {
-        OAuth2.secrets = secrets;
+        OAuthProviders.secrets = secrets;
     }
 
 
-    public static void setIncomingProvider(String provider)
+    public static void setIncoming(String provider)
     {
         OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
         service.init(provider);
     }
 
 
-    public static String setOutgoingProvider(String provider)
+    public static String setOutgoing(String provider)
     {
         OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
 

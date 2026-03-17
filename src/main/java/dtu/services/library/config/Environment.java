@@ -1,6 +1,6 @@
 package dtu.services.library.config;
 
-class Environment
+public class Environment
 {
     public static String TYPE;
     public static String OAUTH_URL;

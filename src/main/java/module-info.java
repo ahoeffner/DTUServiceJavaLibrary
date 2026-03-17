@@ -47,11 +47,12 @@ module dtu.services.library
 
     // Package Visibility
     exports dtu.services.library.utils;
+    exports dtu.services.library.events;
     exports dtu.services.library.metrics;
-    exports dtu.services.library.config.events;
+    exports dtu.services.library.resources;
 
 
     // Reflection access for Spring and Jackson
     opens dtu.services.library.context to tools.jackson.databind;
-    opens dtu.services.library.config.events to tools.jackson.databind;
+    opens dtu.services.library.events to tools.jackson.databind;
 }

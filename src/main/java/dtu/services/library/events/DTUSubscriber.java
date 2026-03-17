@@ -1,4 +1,4 @@
-package dtu.services.library.config.events;
+package dtu.services.library.events;
 
 import java.lang.annotation.Target;
 import java.lang.annotation.Retention;

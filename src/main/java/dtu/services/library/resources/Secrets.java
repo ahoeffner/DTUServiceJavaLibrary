@@ -1,9 +1,10 @@
-package dtu.services.library.config;
+package dtu.services.library.resources;
 
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import dtu.services.library.config.Environment;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.VaultResponse;
 import org.springframework.vault.core.VaultKeyValueOperationsSupport.KeyValueBackend;

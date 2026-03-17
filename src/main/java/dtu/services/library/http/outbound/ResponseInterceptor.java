@@ -5,11 +5,11 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import org.slf4j.LoggerFactory;
 import org.jspecify.annotations.NonNull;
-import dtu.services.library.config.OAuth2;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
 import dtu.services.library.context.ServiceHeaders;
+import dtu.services.library.resources.OAuthProviders;
 import org.springframework.security.core.Authentication;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.ClientHttpRequestExecution;
@@ -61,7 +61,7 @@ public class ResponseInterceptor implements ClientHttpRequestInterceptor
         }
         else
         {
-            String token = OAuth2.getToken();
+            String token = OAuthProviders.getToken();
             if (token != null) request.getHeaders().setBearerAuth(token);
         }
 

@@ -1,4 +1,4 @@
-package dtu.services.library.config.events;
+package dtu.services.library.events;
 
 import java.util.Map;
 import org.slf4j.Logger;
