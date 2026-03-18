@@ -50,6 +50,7 @@ class TopicRouter implements BeanPostProcessor
         {
             if (method.isAnnotationPresent(DTUSubscriber.class))
             {
+                method.setAccessible(true);
                 String topic = method.getAnnotation(DTUSubscriber.class).value();
 
                 routes.computeIfAbsent(topic, k -> new ArrayList<>())
@@ -75,7 +76,7 @@ class TopicRouter implements BeanPostProcessor
     public void onMessage(Message<Object> message)
     {
         List<HandlerReference> handlers = routes.get(message.getTopic());
-        if (handlers == null) return;
+        if (handlers == null || message.getPayload() == null) return;
 
         long time = 0l;
         String clazz  = null;

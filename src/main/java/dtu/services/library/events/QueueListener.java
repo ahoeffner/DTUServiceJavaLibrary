@@ -37,6 +37,12 @@ class QueueListener
     )
     public void receiveFromQueue(Message<Object> message)
     {
+        if (message == null || message.getPayload() == null)
+        {
+            log.error("Discarding malformed null message from business queue");
+            return;
+        }
+
         router.onMessage(message);
     }
 
@@ -49,13 +55,18 @@ class QueueListener
     )
     public void receiveLifecycleSignal(Message<Map<String,String>> message)
     {
+        if (message == null || message.getPayload() == null)
+        {
+            log.error("Discarding malformed null message from lifecycle queue");
+            return;
+        }
+
         String service = message.getPayload().get("service");
         String version = message.getPayload().get("version");
 
         // 1. Safety check: Only react to our own service type
-        if (this.service == null || !this.service.equals(service)) {
+        if (this.service == null || !this.service.equals(service))
             return;
-        }
 
         // 2. Only the current leader needs to check if it should step down
         if (coordinator.isLeader() && isNewer(version,this.version))

@@ -19,7 +19,7 @@ kafka:
       false
 
     spring.json.value.default.type:
-      "dtu.services.library.config.events.Message"
+      "dtu.services.library.events.Message"
 
     spring.json.trusted.packages:
       "dtu.services.*"
@@ -47,7 +47,7 @@ kafka:
       false
 
     spring.json.value.default.type:
-      "dtu.services.library.config.events.Message"
+      "dtu.services.library.events.Message"
 
     spring.json.trusted.packages:
       "dtu.services.*"
@@ -75,7 +75,7 @@ kafka:
       false
 
     spring.json.value.default.type:
-      "dtu.services.library.config.events.Message"
+      "dtu.services.library.events.Message"
 
     spring.json.trusted.packages:
       "dtu.services.*"

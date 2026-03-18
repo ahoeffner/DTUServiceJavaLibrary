@@ -1,24 +1,11 @@
 package dtu.services.library.events;
 
-import org.springframework.stereotype.Component;
-import org.springframework.kafka.core.KafkaTemplate;
-
-
-@Component
-public class DTUEvents
+public interface DTUEvents
 {
-    private final KafkaTemplate<String,Object> kafka;
-
-
-    private DTUEvents(KafkaTemplate<String,Object> kafka)
-    {
-        this.kafka = kafka;
-    }
-
-
-    public void publish(String topic, Object payload)
-    {
-        Message<Object> message = new Message<Object>(topic,payload);
-        kafka.send(topic,message);
-    }
+    /**
+     * Publishes a payload to a specific Kafka topic.
+     * @param topic The destination topic name.
+     * @param payload The data object to be sent.
+     */
+    void publish(String topic, Object payload);
 }

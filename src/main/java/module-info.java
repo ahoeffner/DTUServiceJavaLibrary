@@ -25,6 +25,8 @@ module dtu.services.library
 
     // Data & Messaging
     requires spring.kafka;
+    requires spring.messaging;
+
     requires transitive spring.tx;
     requires transitive spring.jdbc;
     requires transitive spring.boot.jdbc;
@@ -54,5 +56,5 @@ module dtu.services.library
 
     // Reflection access for Spring and Jackson
     opens dtu.services.library.context to tools.jackson.databind;
-    opens dtu.services.library.events to tools.jackson.databind;
+    opens dtu.services.library.events to tools.jackson.databind, spring.core, spring.beans, spring.context, spring.kafka, spring.messaging;
 }
