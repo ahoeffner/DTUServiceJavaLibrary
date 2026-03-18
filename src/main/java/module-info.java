@@ -4,6 +4,7 @@ module dtu.services.library
     requires transitive java.sql;
     requires transitive jakarta.servlet;
 
+
     // Spring Core & Web
     requires transitive spring.web;
     requires transitive spring.boot;
@@ -13,6 +14,7 @@ module dtu.services.library
     requires transitive spring.context;
     requires transitive jakarta.validation;
     requires transitive spring.boot.autoconfigure;
+
 
     // Security
     requires spring.vault.core;
@@ -24,23 +26,34 @@ module dtu.services.library
     requires transitive spring.security.oauth2.jose;
     requires transitive spring.security.oauth2.resource.server;
 
+
+    // Swagger / OpenApi
     requires transitive io.swagger.v3.oas.models;
     requires transitive org.springdoc.openapi.ui;
     requires transitive org.springdoc.openapi.common;
     requires transitive io.swagger.v3.oas.annotations;
     requires transitive org.springdoc.openapi.webmvc.core;
 
-    // Data & Messaging
+
+    // Messaging
     requires spring.kafka;
+    requires kafka.clients;
     requires spring.messaging;
 
+
+    // Database
     requires transitive spring.tx;
     requires transitive spring.jdbc;
     requires transitive spring.boot.jdbc;
+
+
+    // Spring boot
     requires transitive spring.integration.core;
+
 
     // Transformations
     requires transitive org.mapstruct;
+
 
     // Json
     requires transitive tools.jackson.core;
@@ -48,13 +61,16 @@ module dtu.services.library
     requires transitive tools.jackson.dataformat.yaml;
     requires transitive com.fasterxml.jackson.annotation;
 
+
     // Utils
     requires static lombok;
     requires transitive org.jspecify;
 
+
     // Logging
     requires transitive org.slf4j;
     requires transitive logstash.logback.encoder;
+
 
     // Package Visibility
     exports dtu.services.library.utils;
