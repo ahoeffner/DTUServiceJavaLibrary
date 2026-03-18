@@ -25,7 +25,10 @@ module dtu.services.library
     requires transitive spring.security.oauth2.resource.server;
 
     requires transitive io.swagger.v3.oas.models;
+    requires transitive org.springdoc.openapi.ui;
+    requires transitive org.springdoc.openapi.common;
     requires transitive io.swagger.v3.oas.annotations;
+    requires transitive org.springdoc.openapi.webmvc.core;
 
     // Data & Messaging
     requires spring.kafka;
@@ -45,9 +48,11 @@ module dtu.services.library
     requires transitive tools.jackson.dataformat.yaml;
     requires transitive com.fasterxml.jackson.annotation;
 
-    // Logging & Utils
+    // Utils
     requires static lombok;
-    requires static org.jspecify;
+    requires transitive org.jspecify;
+
+    // Logging
     requires transitive org.slf4j;
     requires transitive logstash.logback.encoder;
 

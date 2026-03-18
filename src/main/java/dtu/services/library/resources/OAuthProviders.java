@@ -12,7 +12,6 @@ import org.springframework.web.client.RestClient;
 import tools.jackson.dataformat.yaml.YAMLFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.SecurityFilterChain;
@@ -26,6 +25,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 public class OAuthProviders
 {
     private static Secrets secrets;
+    private static OAuth2Service incoming;
 
     private static final ThreadLocal<String> token = new ThreadLocal<String>();
     private static final Map<String,OAuth2Service> services = new ConcurrentHashMap<>();
@@ -38,10 +38,10 @@ public class OAuthProviders
     }
 
 
-    public static void setIncoming(String provider)
+    public static synchronized void setIncoming(String provider)
     {
-        OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
-        service.init(provider);
+        incoming = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
+        incoming.init(provider);
     }
 
 
@@ -68,6 +68,24 @@ public class OAuthProviders
     public static Map<String,Object> getClaims()
     {
         return(claims.get());
+    }
+
+
+    @Bean
+    JwtDecoder dynamicJwtDecoder()
+    {
+        return(token ->
+        {
+            if (incoming == null || !incoming.initialized)
+                throw new IllegalStateException("Incoming OAuth provider not yet configured via setIncoming()");
+
+            JwtDecoder decoder = incoming.getDecoder();
+
+            if (decoder == null)
+                throw new IllegalStateException("JWT Decoder not initialized for provider: " + incoming.issuer());
+
+            return(decoder.decode(token));
+        });
     }
 
 
@@ -116,6 +134,12 @@ public class OAuthProviders
         }
 
 
+        public JwtDecoder getDecoder()
+        {
+            return(this.decoder);
+        }
+
+
         public synchronized void init(String provider)
         {
             if (initialized) return;
@@ -143,7 +167,7 @@ public class OAuthProviders
 
                 this.type = (String) this.config.get("type");
                 this.issuer = (String) this.config.get("issuer-uri");
-                this.decoder = NimbusJwtDecoder.withJwkSetUri(this.issuer).build();
+                this.decoder = NimbusJwtDecoder.withIssuerLocation(this.issuer).build();
             }
             catch (Exception e)
             {
@@ -223,7 +247,7 @@ public class OAuthProviders
         {
             http
                 .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
-                .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()));
+                .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(dynamicJwtDecoder())));
         }
         else
         {
