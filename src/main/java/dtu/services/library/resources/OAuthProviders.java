@@ -1,6 +1,7 @@
 package dtu.services.library.resources;
 
 import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -25,11 +26,8 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 public class OAuthProviders
 {
     private static Secrets secrets;
-    private static OAuth2Service incoming;
-
-    private static final ThreadLocal<String> token = new ThreadLocal<String>();
     private static final Map<String,OAuth2Service> services = new ConcurrentHashMap<>();
-    private static final ThreadLocal<Map<String,Object>> claims = new ThreadLocal<Map<String,Object>>();
+    private static final ThreadLocal<OAuth2Service[]> authentications = new ThreadLocal<OAuth2Service[]>();
 
 
     OAuthProviders(Secrets secrets)
@@ -38,10 +36,38 @@ public class OAuthProviders
     }
 
 
+    private static synchronized OAuth2Service local()
+    {
+        String provider = "local";
+        OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
+        service.init(provider);
+        return(service);
+    }
+
+
+    public static synchronized String getToken()
+    {
+        OAuth2Service[] services = authentications.get();
+        if (services == null || services[1] == null) return(null);
+        return(services[1].getServiceToken(services[1].issuer()));
+    }
+
+
+    public static synchronized void resetIncoming()
+    {
+        OAuth2Service service = local();
+        if (authentications.get() != null) authentications.get()[0] = service;
+        else authentications.set(new OAuth2Service[]{service,null});
+    }
+
+
     public static synchronized void setIncoming(String provider)
     {
-        incoming = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
-        incoming.init(provider);
+        OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
+        service.init(provider);
+
+        if (authentications.get() != null) authentications.get()[0] = service;
+        else authentications.set(new OAuth2Service[]{service,null});
     }
 
 
@@ -52,40 +78,29 @@ public class OAuthProviders
         service.init(provider);
         String actkn = service.getServiceToken(provider);
 
-        token.set(actkn);
-        claims.set(service.claims());
+        if (authentications.get() != null) authentications.get()[1] = service;
+        else authentications.set(new OAuth2Service[]{null,service});
 
         return(actkn);
     }
 
 
-    public static String getToken()
-    {
-        return(token.get());
-    }
-
-
-    public static Map<String,Object> getClaims()
-    {
-        return(claims.get());
-    }
-
-
-    @Bean
     JwtDecoder dynamicJwtDecoder()
     {
-        return(token ->
+        OAuth2Service[] services = authentications.get();
+
+        if (services == null || services[0] == null)
         {
-            if (incoming == null || !incoming.initialized)
-                throw new IllegalStateException("Incoming OAuth provider not yet configured via setIncoming()");
+            resetIncoming();
+            services = authentications.get();
+        }
 
-            JwtDecoder decoder = incoming.getDecoder();
+        JwtDecoder decoder = services[0].getDecoder();
 
-            if (decoder == null)
-                throw new IllegalStateException("JWT Decoder not initialized for provider: " + incoming.issuer());
+        if (decoder == null)
+            throw new IllegalStateException("JWT Decoder not initialized for provider: " + services[0].issuer());
 
-            return(decoder.decode(token));
-        });
+        return(decoder);
     }
 
 
@@ -243,6 +258,11 @@ public class OAuthProviders
     {
         http.authorizeHttpRequests(auth -> auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll());
 
+        http
+            .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(dynamicJwtDecoder())));
+
+        /*
         if ("prod".equals(Environment.TYPE))
         {
             http
@@ -255,7 +275,7 @@ public class OAuthProviders
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
         }
-
+         */
         return(http.build());
     }
 }
