@@ -11,6 +11,7 @@ module dtu.services.library
     requires transitive spring.beans;
     requires transitive spring.webmvc;
     requires transitive spring.context;
+    requires transitive jakarta.validation;
     requires transitive spring.boot.autoconfigure;
 
     // Security
@@ -22,6 +23,9 @@ module dtu.services.library
     requires transitive spring.security.oauth2.core;
     requires transitive spring.security.oauth2.jose;
     requires transitive spring.security.oauth2.resource.server;
+
+    requires transitive io.swagger.v3.oas.models;
+    requires transitive io.swagger.v3.oas.annotations;
 
     // Data & Messaging
     requires spring.kafka;
