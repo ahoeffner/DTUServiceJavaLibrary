@@ -12,7 +12,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ServiceHeaders
 {
-    @JsonProperty("username")
+    @JsonProperty("user")
     private String username;
 
     @JsonProperty("application")
