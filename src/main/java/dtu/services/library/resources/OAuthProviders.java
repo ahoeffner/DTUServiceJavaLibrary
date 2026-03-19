@@ -17,67 +17,57 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 
 
 @Configuration
 @EnableWebSecurity
 public class OAuthProviders
 {
-    private static Secrets secrets;
-    private static final Map<String,OAuth2Service> services = new ConcurrentHashMap<>();
-    private static final ThreadLocal<OAuth2Service[]> authentications = new ThreadLocal<OAuth2Service[]>();
-    private static final Logger log = LoggerFactory.getLogger(OAuthProviders.class);
+    private Secrets secrets;
+    private final Map<String,OAuth2Service> services = new ConcurrentHashMap<>();
+    private final ThreadLocal<OAuth2Service[]> authentications = new ThreadLocal<OAuth2Service[]>();
+    private final Logger log = LoggerFactory.getLogger(OAuthProviders.class);
 
 
     OAuthProviders(Secrets secrets)
     {
-        OAuthProviders.secrets = secrets;
+        this.secrets = secrets;
     }
 
 
-    private static synchronized OAuth2Service local()
-    {
-        String provider = "local";
-        OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
-        service.init(provider);
-        return(service);
-    }
-
-
-    public static synchronized String getToken()
+    public String getToken()
     {
         OAuth2Service[] services = authentications.get();
         if (services == null || services[1] == null) return(null);
-        return(services[1].getServiceToken(services[1].issuer()));
+        return(services[1].getServiceToken());
     }
 
 
-    public static synchronized void resetIncoming()
+    public String getIncoming()
     {
-        OAuth2Service service = local();
-        if (authentications.get() != null) authentications.get()[0] = service;
-        else authentications.set(new OAuth2Service[]{service,null});
+        OAuth2Service[] services = authentications.get();
+        if (services == null || services[0] == null) return(null);
+        return(services[0].provider);
     }
 
 
-    public static synchronized void setIncoming(String provider)
+    public String getOutgoing()
     {
-        OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
-        service.init(provider);
-
-        if (authentications.get() != null) authentications.get()[0] = service;
-        else authentications.set(new OAuth2Service[]{service,null});
+        OAuth2Service[] services = authentications.get();
+        if (services == null || services[1] == null) return(null);
+        return(services[1].provider);
     }
 
 
-    public static String setOutgoing(String provider)
+    public String setOutgoing(String provider)
     {
-        OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(secrets,p));
-
-        service.init(provider);
-        String actkn = service.getServiceToken(provider);
+        OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(this,secrets,p));
+        String actkn = service.getServiceToken();
 
         if (authentications.get() != null) authentications.get()[1] = service;
         else authentications.set(new OAuth2Service[]{null,service});
@@ -86,7 +76,7 @@ public class OAuthProviders
     }
 
 
-    public static synchronized String getIncomingTokenUrl()
+    public String getIncomingTokenUrl()
     {
         if (authentications.get() == null)
             authentications.set(new OAuth2Service[]{local(),null});
@@ -96,19 +86,65 @@ public class OAuthProviders
     }
 
 
-    public static synchronized String getIncomingUser()
+    public String getOutgoingTokenUrl()
     {
         if (authentications.get() == null)
-            authentications.set(new OAuth2Service[]{local(),null});
+            authentications.set(new OAuth2Service[]{null,local()});
+
+        OAuth2Service service = authentications.get()[1];
+        return((String) service.config.get("token-endpoint"));
+    }
+
+
+    public String getUser()
+    {
+        String user = "anonymous";
+
+        OAuth2Service[] auths = authentications.get();
+
+        if (auths == null || auths[0] == null || auths[0].claims == null)
+            return(user);
+
+        if (auths[0].type().equals("keycloak"))
+        {
+            user = (String) auths[0].claims.get("preferred_username");
+            if (user == null) user = (String) auths[0].claims.get("sub");
+            if (user == null) user = (String) auths[0].claims.get("email");
+        }
+
+        return((user == null) ? "anonymous" : user);
+    }
+
+
+    @SuppressWarnings("unchecked")
+    public String[] getRoles()
+    {
+        if (authentications.get() == null)
+            return(null);
 
         OAuth2Service service = authentications.get()[0];
-        if (service == null) return("anonymous");
+        if (service == null || service.claims == null) return(new String[0]);
 
-        String username = (String) service.claims.get("preferred_username");
-        if (username == null) username = (String) service.claims.get("sub");
-        if (username == null) username = (String) service.claims.get("email");
+        if (service.type().equals("keycloak"))
+        {
+            Map<String, Object> realmAccess = (Map<String, Object>) service.claims.get("realm_access");
 
-        return((username == null) ? "anonymous" : username);
+            if (realmAccess != null && realmAccess.containsKey("roles"))
+            {
+                java.util.List<String> roles = (java.util.List<String>) realmAccess.get("roles");
+                return(roles.toArray(new String[0]));
+            }
+        }
+
+        return(new String[0]);
+    }
+
+
+    private OAuth2Service local()
+    {
+        String provider = "local";
+        OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(this,secrets,p));
+        return(service);
     }
 
 
@@ -116,15 +152,18 @@ public class OAuthProviders
     {
         return((token) ->
         {
-            OAuth2Service[] auths = authentications.get();
+            String provider = null;
 
-            if (auths == null || auths[0] == null)
-            {
-                resetIncoming();
-                auths = authentications.get();
-            }
+            ServletRequestAttributes attrs =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 
-            JwtDecoder delegate = auths[0].getDecoder();
+            provider = attrs.getRequest().getHeader("X-OAuth-Provider");
+            if (provider == null || provider.isBlank()) provider = "local";
+
+            OAuth2Service service = services.computeIfAbsent(provider, p -> new OAuth2Service(this,secrets,p));
+            authentications.set(new OAuth2Service[]{service, null});
+
+            JwtDecoder delegate = service.getDecoder();
 
             if (delegate == null)
             {
@@ -133,7 +172,7 @@ public class OAuthProviders
             }
 
             Jwt jwt = delegate.decode(token);
-            auths[0].claims = jwt.getClaims();
+            service.claims = jwt.getClaims();
 
             return(jwt);
         });
@@ -149,21 +188,30 @@ public class OAuthProviders
         private String clientid;
         private String tokenpath;
 
-        private long expiryTime = 0;
-        private String cached = null;
-        private boolean initialized = false;
+        private volatile long expiryTime = 0;
+        private volatile String cached = null;
 
-        private JwtDecoder decoder;
-        private Map<String,Object> claims;
+        private final String provider;
+        private final Secrets secrets;
+        private final OAuthProviders parent;
+
         private Map<String,Object> config;
+        private volatile JwtDecoder decoder;
+        private volatile Map<String,Object> claims;
 
         private final RestClient restclient = RestClient.create();
         private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         private final Logger log = LoggerFactory.getLogger(OAuth2Service.class);
 
 
-        OAuth2Service(Secrets secrets, String provider)
+        OAuth2Service(OAuthProviders parent, Secrets secrets, String provider)
         {
+            this.parent = parent;
+            this.secrets = secrets;
+            this.provider = provider;
+
+            this.loadConfig();
+
         }
 
 
@@ -191,16 +239,8 @@ public class OAuthProviders
         }
 
 
-        public synchronized void init(String provider)
-        {
-            if (initialized) return;
-            loadConfig(provider);
-            initialized = true;
-        }
-
-
         @SuppressWarnings("unchecked")
-        private void loadConfig(String provider)
+        private void loadConfig()
         {
             String uri = Environment.OAUTH_URL + "/" + provider + ".yaml";
 
@@ -213,8 +253,12 @@ public class OAuthProviders
                     .body(String.class);
 
                 this.config = mapper.readValue(config,Map.class);
+
                 this.config = (Map<String,Object>) this.config.get("oauth2");
+                if (this.config == null) throw new IllegalArgumentException("Missing 'oauth2' key");
+
                 this.config = (Map<String,Object>) this.config.get(Environment.TYPE);
+                if (this.config == null) throw new IllegalArgumentException("Missing 'oauth2/"+Environment.TYPE+"' key");
 
                 this.type = (String) this.config.get("type");
                 this.issuer = (String) this.config.get("issuer-uri");
@@ -222,14 +266,14 @@ public class OAuthProviders
             }
             catch (Exception e)
             {
-                services.remove(provider);
+                parent.services.remove(provider);
                 log.error("Unable to load oauth settings for {} {}",uri,e.getMessage());
             }
         }
 
 
         @SuppressWarnings("unchecked")
-        synchronized String getServiceToken(String provider)
+        synchronized String getServiceToken()
         {
             if (this.config == null)
                 return(null);
@@ -239,12 +283,12 @@ public class OAuthProviders
 
             try
             {
-                Map<String,String> auth = secrets.getSecrets("oauth2/"+provider+"/"+Environment.TYPE);
+                Map<String,String> auth = this.secrets.getSecrets("oauth2/"+provider+"/"+Environment.TYPE);
 
                 if (auth == null)
                 {
                     log.error("No secrets found for {}",provider);
-                    services.remove(provider);
+                    parent.services.remove(provider);
                     return(null);
                 }
 
@@ -296,7 +340,13 @@ public class OAuthProviders
 
         http
             .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
-            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(dynamicJwtDecoder())));
+            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(dynamicJwtDecoder())))
+            .addFilterAfter((request, response, chain) ->
+            {
+                // Run and clean up
+                try {chain.doFilter(request, response);}
+                finally {authentications.remove();}
+            },BearerTokenAuthenticationFilter.class);
 
         return(http.build());
     }

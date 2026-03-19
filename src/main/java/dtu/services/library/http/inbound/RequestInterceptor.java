@@ -21,6 +21,7 @@ public class RequestInterceptor implements HandlerInterceptor
 {
     private final String service;
     private final String version;
+    private final OAuthProviders providers;
 
     private final MetricsAggregator metrics;
 
@@ -34,12 +35,18 @@ public class RequestInterceptor implements HandlerInterceptor
     );
 
 
+    public static boolean pass(String path)
+    {
+        return(EXCLUDE.stream().anyMatch(path::startsWith));
+    }
 
-    public RequestInterceptor(String service, String version, MetricsAggregator metrics)
+
+    public RequestInterceptor(String service, String version, OAuthProviders providers, MetricsAggregator metrics)
     {
         this.service = service;
         this.version = version;
         this.metrics = metrics;
+        this.providers = providers;
     }
 
 
@@ -54,7 +61,7 @@ public class RequestInterceptor implements HandlerInterceptor
         try
         {
             ServiceHeaders headers = ServiceHeaders.extract(service,request);
-            String username = OAuthProviders.getIncomingUser();
+            String username = providers.getUser();
 
             headers.setUser(username);
             headers.setHeaders(response);

@@ -5,13 +5,12 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import org.slf4j.LoggerFactory;
 import org.jspecify.annotations.NonNull;
-import tools.jackson.databind.ObjectMapper;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
 import dtu.services.library.context.ServiceHeaders;
 import dtu.services.library.resources.OAuthProviders;
 import org.springframework.security.core.Authentication;
 import org.springframework.http.client.ClientHttpResponse;
+import dtu.services.library.http.inbound.RequestInterceptor;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,49 +19,61 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 public class ResponseInterceptor implements ClientHttpRequestInterceptor
 {
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private final OAuthProviders providers;
     private static final Logger log = LoggerFactory.getLogger(ResponseInterceptor.class);
+
+
+    public ResponseInterceptor(OAuthProviders providers)
+    {
+        this.providers = providers;
+    }
 
 
     @NonNull
     @Override
     public ClientHttpResponse intercept(@NonNull HttpRequest request, @NonNull byte[] body, @NonNull ClientHttpRequestExecution execution) throws IOException
     {
-        String header = null;
         ServiceHeaders headers = ServiceHeaders.getHeaders();
 
-        if (headers == null || headers.getUser() == null)
+        if (RequestInterceptor.pass(request.getURI().getPath()))
             return(execution.execute(request, body));
-
 
         if (headers != null)
         {
-            try
-            {
-                header = objectMapper.writeValueAsString(headers);
-                request.getHeaders().add(ServiceHeaders.HEADER, header);
-
-            }
-            catch (Exception e)
-            {
-                log.error("Cannot parse header",e);
-            }
+            try {headers.setHeaders(request);}
+            catch (Exception e) {log.error("Cannot parse header",e);}
         }
 
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-        if (auth instanceof JwtAuthenticationToken jwtAuth)
-        {
-            String token = jwtAuth.getToken().getTokenValue();
-            request.getHeaders().add(HttpHeaders.AUTHORIZATION, "Bearer " + token);
-        }
-        else
-        {
-            String token = OAuthProviders.getToken();
-            if (token != null) request.getHeaders().setBearerAuth(token);
-        }
+        String token = resolveToken();
+        if (token != null) request.getHeaders().setBearerAuth(token);
 
         ClientHttpResponse response = execution.execute(request,body);
         return(response);
+    }
+
+
+    /**
+     * Prioritizes the user token if the provider matches or if no outgoing provider is set.
+     * Otherwise, uses the service-to-service token.
+     */
+    private String resolveToken()
+    {
+        String in = providers.getIncoming();
+        String out = providers.getOutgoing();
+
+        // Scenario A: Use the incoming User's token
+        if (out == null || (in != null && in.equals(out)))
+        {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+            if (auth instanceof JwtAuthenticationToken jwtAuth)
+                return(jwtAuth.getToken().getTokenValue());
+
+            return(null);
+        }
+
+        // Scenario B: Use the Service-to-Service token (Client Credentials)
+        // (Happens if Scenario A didn't apply or didn't find a user token)
+        return(providers.getToken());
     }
 }

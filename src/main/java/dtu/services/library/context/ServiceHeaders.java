@@ -1,7 +1,9 @@
 package dtu.services.library.context;
 
 
+import java.util.Map;
 import tools.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -13,7 +15,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class ServiceHeaders
 {
     @JsonProperty("user")
-    private String username;
+    private String user;
 
     @JsonProperty("application")
     private String application;
@@ -36,6 +38,12 @@ public class ServiceHeaders
     }
 
 
+    public ServiceHeaders(String application)
+    {
+        this.application = application;
+    }
+
+
     public static void clear()
     {
         client.remove();
@@ -44,25 +52,25 @@ public class ServiceHeaders
 
     public String getUser()
     {
-        return(client.get().username);
+        return(this.user);
     }
 
 
-    public void setUser(String username)
+    public void setUser(String user)
     {
-        client.get().username = username;
+        this.user = user;
     }
 
 
-    public static String getApplication()
+    public String getApplication()
     {
-        return(client.get().application);
+        return(this.application);
     }
 
 
-    public static void setApplication(String application)
+    public void setApplication(String application)
     {
-        client.get().application = application;
+        this.application = application;
     }
 
 
@@ -81,15 +89,20 @@ public class ServiceHeaders
     }
 
 
-    public ServiceHeaders(String application)
-    {
-        this.application = application;
-    }
-
-
     public void setHeaders(HttpServletResponse response) throws Exception
     {
         String header = objectMapper.writeValueAsString(this);
         response.setHeader(HEADER,header);
+    }
+
+
+
+    @SuppressWarnings("unchecked")
+    public void setHeaders(HttpRequest request) throws Exception
+    {
+        Map<String,Object> headers = objectMapper.convertValue(this,Map.class);
+        if (headers.containsKey("user"))headers.remove("user");
+        String header = objectMapper.writeValueAsString(this);
+        request.getHeaders().set(HEADER,header);
     }
 }

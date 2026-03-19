@@ -11,11 +11,20 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class SwaggerSecurity
 {
+    private final OAuthProviders providers;
+
+
+    public SwaggerSecurity(OAuthProviders providers)
+    {
+        this.providers = providers;
+    }
+
+
     @Bean
     public OpenAPI customOpenAPI()
     {
         final String securitySchemeName = "KeycloakAuth";
-        String tokenUrl = OAuthProviders.getIncomingTokenUrl();
+        String tokenUrl = providers.getIncomingTokenUrl();
 
         return
         (

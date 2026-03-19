@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import dtu.services.library.utils.Reflection;
 import org.springframework.web.client.RestClient;
 import org.springframework.context.annotation.Bean;
+import dtu.services.library.resources.OAuthProviders;
 import dtu.services.library.metrics.MetricsAggregator;
 import org.springframework.beans.factory.annotation.Value;
 import dtu.services.library.http.inbound.FinalInterceptor;
@@ -40,6 +41,10 @@ class Configuration implements WebMvcConfigurer
     @Autowired
     private MetricsAggregator metrics;
 
+    @Autowired
+    private OAuthProviders providers;
+
+
     @Override
     public void addInterceptors(InterceptorRegistry registry)
     {
@@ -47,7 +52,7 @@ class Configuration implements WebMvcConfigurer
 
         try
         {
-            interceptor = new RequestInterceptor(this.service,this.version,this.metrics);
+            interceptor = new RequestInterceptor(this.service,this.version,this.providers,this.metrics);
             registry.addInterceptor(interceptor);
 
             interceptor = new FinalInterceptor();
@@ -67,7 +72,7 @@ class Configuration implements WebMvcConfigurer
         try
         {
             ClientHttpRequestInterceptor interceptor = null;
-            interceptor = new ResponseInterceptor();
+            interceptor = new ResponseInterceptor(this.providers);
             return(interceptor);
         }
         catch (Exception e)
