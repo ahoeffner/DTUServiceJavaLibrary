@@ -1,7 +1,6 @@
 package dtu.services.library.resources;
 
 import java.util.Map;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -28,6 +27,7 @@ public class OAuthProviders
     private static Secrets secrets;
     private static final Map<String,OAuth2Service> services = new ConcurrentHashMap<>();
     private static final ThreadLocal<OAuth2Service[]> authentications = new ThreadLocal<OAuth2Service[]>();
+    private static final Logger log = LoggerFactory.getLogger(OAuthProviders.class);
 
 
     OAuthProviders(Secrets secrets)
@@ -87,20 +87,26 @@ public class OAuthProviders
 
     JwtDecoder dynamicJwtDecoder()
     {
-        OAuth2Service[] services = authentications.get();
-
-        if (services == null || services[0] == null)
+        return((token) ->
         {
-            resetIncoming();
-            services = authentications.get();
-        }
+            OAuth2Service[] auths = authentications.get();
 
-        JwtDecoder decoder = services[0].getDecoder();
+            if (auths == null || auths[0] == null)
+            {
+                resetIncoming();
+                auths = authentications.get();
+            }
 
-        if (decoder == null)
-            throw new IllegalStateException("JWT Decoder not initialized for provider: " + services[0].issuer());
+            JwtDecoder delegate = auths[0].getDecoder();
 
-        return(decoder);
+            if (delegate == null)
+            {
+                log.error("Auth Provider unreachable");
+                throw new IllegalStateException("Auth Provider unreachable");
+            }
+
+            return(delegate.decode(token));
+        });
     }
 
 
@@ -257,25 +263,13 @@ public class OAuthProviders
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception
     {
         http.authorizeHttpRequests(auth -> auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll());
-
-        http
-            .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
-            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(dynamicJwtDecoder())));
-
-        /*
-        if ("prod".equals(Environment.TYPE))
-        {
-            http
-                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
-                .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(dynamicJwtDecoder())));
-        }
-        else
-        {
-            http
-                .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
-        }
-         */
+        http.authorizeHttpRequests(auth -> auth.requestMatchers("/**").permitAll());
         return(http.build());
+
+        // http
+        //     .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+        //     .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(dynamicJwtDecoder())));
+
+        // return(http.build());
     }
 }
