@@ -221,8 +221,12 @@ public class OAuthProviders
             this.secrets = secrets;
             this.provider = provider;
 
-            this.loadConfig();
-
+            try {this.loadConfig();}
+            catch (Exception e)
+            {
+                log.error("Unable to initialize OAuth service for provider {}: {}", provider, e.getMessage());
+                throw new IllegalStateException("Failed to initialize provider", e);
+            }
         }
 
 
@@ -261,34 +265,35 @@ public class OAuthProviders
         {
             String uri = Environment.OAUTH_URL + "/" + provider + ".yaml";
 
-            try
+            String config = restclient
+                .get()
+                .uri(uri)
+                .retrieve()
+                .body(String.class);
+
+            this.config = mapper.readValue(config,Map.class);
+
+            this.config = (Map<String,Object>) this.config.get("oauth2");
+            if (this.config == null) throw new IllegalArgumentException("Missing 'oauth2' key");
+
+            this.config = (Map<String,Object>) this.config.get(Environment.TYPE);
+            if (this.config == null) throw new IllegalArgumentException("Missing 'oauth2/"+Environment.TYPE+"' key");
+
+            this.type = (String) this.config.get("type");
+            this.scope = (String) this.config.get("scope");
+            this.issuer = (String) this.config.get("issuer-uri");
+            this.tokenpath = (String) this.config.get("token-endpoint");
+            this.publicpath = (String) this.config.get("public-endpoint");
+
+            switch (this.type)
             {
-                String config = restclient
-                    .get()
-                    .uri(uri)
-                    .retrieve()
-                    .body(String.class);
+                case "oracle":
+                    this.decoder = NimbusJwtDecoder.withJwkSetUri(this.issuer).build();
+                    break;
 
-                this.config = mapper.readValue(config,Map.class);
-
-                this.config = (Map<String,Object>) this.config.get("oauth2");
-                if (this.config == null) throw new IllegalArgumentException("Missing 'oauth2' key");
-
-                this.config = (Map<String,Object>) this.config.get(Environment.TYPE);
-                if (this.config == null) throw new IllegalArgumentException("Missing 'oauth2/"+Environment.TYPE+"' key");
-
-                this.type = (String) this.config.get("type");
-                this.scope = (String) this.config.get("scope");
-                this.issuer = (String) this.config.get("issuer-uri");
-                this.tokenpath = (String) this.config.get("token-endpoint");
-                this.publicpath = (String) this.config.get("public-endpoint");
-
-                this.decoder = NimbusJwtDecoder.withIssuerLocation(this.issuer).build();
-            }
-            catch (Exception e)
-            {
-                parent.services.remove(provider);
-                log.error("Unable to load oauth settings for {} {}",uri,e.getMessage());
+                default:
+                    this.decoder = NimbusJwtDecoder.withIssuerLocation(this.issuer).build();
+                    break;
             }
         }
 
