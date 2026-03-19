@@ -85,6 +85,13 @@ public class OAuthProviders
     }
 
 
+    public static synchronized String getLocalTokenUrl()
+    {
+        OAuth2Service service = local();
+        return (String) service.config.get("token-endpoint");
+    }
+
+
     JwtDecoder dynamicJwtDecoder()
     {
         return((token) ->
@@ -263,13 +270,11 @@ public class OAuthProviders
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception
     {
         http.authorizeHttpRequests(auth -> auth.requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll());
-        http.authorizeHttpRequests(auth -> auth.requestMatchers("/**").permitAll());
+
+        http
+            .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(dynamicJwtDecoder())));
+
         return(http.build());
-
-        // http
-        //     .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
-        //     .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(dynamicJwtDecoder())));
-
-        // return(http.build());
     }
 }
