@@ -11,6 +11,7 @@ import dtu.services.library.config.Environment;
 import org.springframework.web.client.RestClient;
 import tools.jackson.dataformat.yaml.YAMLFactory;
 import org.springframework.context.annotation.Bean;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.context.annotation.Configuration;
@@ -85,10 +86,29 @@ public class OAuthProviders
     }
 
 
-    public static synchronized String getLocalTokenUrl()
+    public static synchronized String getIncomingTokenUrl()
     {
-        OAuth2Service service = local();
-        return (String) service.config.get("token-endpoint");
+        if (authentications.get() == null)
+            authentications.set(new OAuth2Service[]{local(),null});
+
+        OAuth2Service service = authentications.get()[0];
+        return((String) service.config.get("token-endpoint"));
+    }
+
+
+    public static synchronized String getIncomingUser()
+    {
+        if (authentications.get() == null)
+            authentications.set(new OAuth2Service[]{local(),null});
+
+        OAuth2Service service = authentications.get()[0];
+        if (service == null) return("anonymous");
+
+        String username = (String) service.claims.get("preferred_username");
+        if (username == null) username = (String) service.claims.get("sub");
+        if (username == null) username = (String) service.claims.get("email");
+
+        return((username == null) ? "anonymous" : username);
     }
 
 
@@ -112,7 +132,10 @@ public class OAuthProviders
                 throw new IllegalStateException("Auth Provider unreachable");
             }
 
-            return(delegate.decode(token));
+            Jwt jwt = delegate.decode(token);
+            auths[0].claims = jwt.getClaims();
+
+            return(jwt);
         });
     }
 

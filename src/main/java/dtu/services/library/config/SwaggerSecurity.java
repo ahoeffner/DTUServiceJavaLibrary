@@ -15,7 +15,7 @@ public class SwaggerSecurity
     public OpenAPI customOpenAPI()
     {
         final String securitySchemeName = "KeycloakAuth";
-        String tokenUrl = OAuthProviders.getLocalTokenUrl();
+        String tokenUrl = OAuthProviders.getIncomingTokenUrl();
 
         return
         (

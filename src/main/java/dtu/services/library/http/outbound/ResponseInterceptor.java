@@ -31,7 +31,7 @@ public class ResponseInterceptor implements ClientHttpRequestInterceptor
         String header = null;
         ServiceHeaders headers = ServiceHeaders.getHeaders();
 
-        if (headers == null || ServiceHeaders.getUser() == null)
+        if (headers == null || headers.getUser() == null)
             return(execution.execute(request, body));
 
 
@@ -48,9 +48,6 @@ public class ResponseInterceptor implements ClientHttpRequestInterceptor
                 log.error("Cannot parse header",e);
             }
         }
-
-        if (ServiceHeaders.getUser() != ServiceHeaders.ANON)
-            request.getHeaders().add(ServiceHeaders.USER, ServiceHeaders.getUser());
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 

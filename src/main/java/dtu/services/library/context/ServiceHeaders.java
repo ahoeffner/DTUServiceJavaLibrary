@@ -18,8 +18,6 @@ public class ServiceHeaders
     @JsonProperty("application")
     private String application;
 
-    public static final String ANON = "anonymous";
-    public static final String USER = "X-User-Name";
     public static final String HEADER = "X-Service-Context";
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -44,13 +42,13 @@ public class ServiceHeaders
     }
 
 
-    public static String getUser()
+    public String getUser()
     {
         return(client.get().username);
     }
 
 
-    public static void setUser(String username)
+    public void setUser(String username)
     {
         client.get().username = username;
     }
@@ -77,12 +75,6 @@ public class ServiceHeaders
         headers = (header != null && !header.isBlank())
             ? objectMapper.readValue(header, ServiceHeaders.class)
             : new ServiceHeaders(service);
-
-        if (headers.username == null)
-            headers.username = request.getHeader(USER);
-
-        if (headers.username == null)
-            headers.username = ANON;
 
         client.set(headers);
         return(headers);

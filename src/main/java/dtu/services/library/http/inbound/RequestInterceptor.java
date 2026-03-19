@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import dtu.services.library.context.ServiceContext;
 import dtu.services.library.context.ServiceHeaders;
+import dtu.services.library.resources.OAuthProviders;
 import dtu.services.library.metrics.MetricsAggregator;
 import org.springframework.web.servlet.HandlerInterceptor;
 import static org.springframework.web.servlet.HandlerMapping.*;
@@ -53,6 +54,9 @@ public class RequestInterceptor implements HandlerInterceptor
         try
         {
             ServiceHeaders headers = ServiceHeaders.extract(service,request);
+            String username = OAuthProviders.getIncomingUser();
+
+            headers.setUser(username);
             headers.setHeaders(response);
         }
         catch (Exception e)
