@@ -76,6 +76,16 @@ public class OAuthProviders
     }
 
 
+    public String getExposedEndpoint()
+    {
+        if (authentications.get() == null)
+            authentications.set(new OAuth2Service[]{local(),null});
+
+        OAuth2Service service = authentications.get()[0];
+        return((String) service.exposed());
+    }
+
+
     public String getIncomingTokenUrl()
     {
         if (authentications.get() == null)
@@ -187,6 +197,7 @@ public class OAuthProviders
         private String issuer;
         private String clientid;
         private String tokenpath;
+        private String publicpath;
 
         private volatile long expiryTime = 0;
         private volatile String cached = null;
@@ -227,6 +238,12 @@ public class OAuthProviders
         }
 
 
+        public String exposed()
+        {
+            return(this.publicpath);
+        }
+
+
         Map<String,Object> claims()
         {
             return(this.claims);
@@ -261,7 +278,11 @@ public class OAuthProviders
                 if (this.config == null) throw new IllegalArgumentException("Missing 'oauth2/"+Environment.TYPE+"' key");
 
                 this.type = (String) this.config.get("type");
+                this.scope = (String) this.config.get("scope");
                 this.issuer = (String) this.config.get("issuer-uri");
+                this.tokenpath = (String) this.config.get("token-endpoint");
+                this.publicpath = (String) this.config.get("public-endpoint");
+
                 this.decoder = NimbusJwtDecoder.withIssuerLocation(this.issuer).build();
             }
             catch (Exception e)
@@ -292,12 +313,8 @@ public class OAuthProviders
                     return(null);
                 }
 
-                scope = (String) this.config.get("scope");
-
                 secret = (String) auth.get("client-secret");
                 clientid = (String) auth.get("client-id");
-
-                tokenpath = (String) this.config.get("token-endpoint");
 
                 RestClient client = RestClient.create();
                 MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
