@@ -4,10 +4,10 @@ import java.util.Map;
 import org.slf4j.Logger;
 import javax.sql.DataSource;
 import org.slf4j.LoggerFactory;
-import tools.jackson.databind.ObjectMapper;
+import java.util.stream.Collectors;
+import dtu.services.library.config.Database;
 import dtu.services.library.config.Environment;
 import org.springframework.stereotype.Component;
-import tools.jackson.dataformat.yaml.YAMLFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.context.annotation.Bean;
@@ -28,9 +28,7 @@ public class Databases
     private final Secrets secrets;
     private final RestClient client;
     private final GenericApplicationContext context;
-
     private static final Logger log = LoggerFactory.getLogger(Databases.class);
-    private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
 
     private Databases(Secrets secrets, RestClient client, GenericApplicationContext context)
@@ -55,7 +53,7 @@ public class Databases
         try
         {
             log.info("Creating datasource for database "+name);
-            Map<String,Map<String,Object>> definitions = load(name);
+            Map<String,Map<String,Object>> definitions = Database.get(client,name).config;
 
 
             if (definitions == null)
@@ -98,35 +96,17 @@ public class Databases
     }
 
 
-    @SuppressWarnings("unchecked")
-    private Map<String,Map<String,Object>> load(String name)
-    {
-        String url = Environment.DATASOURCES_URL + "/" + name + ".yaml";
-
-        if (name != null)
-        {
-           String yaml = client
-                .get()
-                .uri(url)
-                .retrieve()
-                .body(String.class);
-
-            Map<String,Object> response = mapper.readValue(yaml,Map.class);
-            return((Map<String,Map<String,Object>>) response.get("properties"));
-        }
-
-        return(null);
-    }
-
-
     private Map<String,Object> replace(Map<String,Object> config, Map<String,String> secrets)
     {
         if (secrets == null)
             return(config);
 
-        for (String key : config.keySet())
+        Map<String,Object> resolved = config.entrySet().stream()
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue()));
+
+        for (String key : resolved.keySet())
         {
-            Object value = config.get(key);
+            Object value = resolved.get(key);
 
             if (value instanceof String)
             {
@@ -140,11 +120,11 @@ public class Databases
                 sval = sval.trim();
 
                 if (secrets.containsKey(sval))
-                    config.put(key,secrets.get(sval));
+                    resolved.put(key,secrets.get(sval));
             }
         }
 
-        return(config);
+        return(resolved);
     }
 
 

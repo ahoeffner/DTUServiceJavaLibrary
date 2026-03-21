@@ -15,7 +15,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 
 
-public class OAuthConfig
+public class OAuthProvider
 {
     public final String type;
     public final String scope;
@@ -29,19 +29,19 @@ public class OAuthConfig
     private final RestClient restclient = RestClient.create();
     private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
     private final Logger log = LoggerFactory.getLogger(OAuthProviders.class);
-    private final static Map<String,OAuthConfig> configurations = new ConcurrentHashMap<>();
+    private final static Map<String,OAuthProvider> configurations = new ConcurrentHashMap<>();
 
 
-    public static synchronized OAuthConfig get(String provider)
+    public static synchronized OAuthProvider get(String provider)
     {
-        OAuthConfig config = configurations.computeIfAbsent(provider,p->new OAuthConfig(p));
+        OAuthProvider config = configurations.computeIfAbsent(provider,p->new OAuthProvider(p));
         if (config.failed()) configurations.remove(provider);
         return(config);
     }
 
 
     @SuppressWarnings("unchecked")
-    OAuthConfig(String provider)
+    OAuthProvider(String provider)
     {
         String type = null;
         String scope = null;

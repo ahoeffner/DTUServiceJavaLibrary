@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.util.MultiValueMap;
 import dtu.services.library.config.Environment;
-import dtu.services.library.config.OAuthConfig;
+import dtu.services.library.config.OAuthProvider;
 import org.springframework.web.client.RestClient;
 import dtu.services.library.errors.ErrorResponse;
 import org.springframework.context.annotation.Bean;
@@ -241,7 +241,7 @@ public class OAuthProviders
             ErrorResponse error = new ErrorResponse
             (
                 UNAUTHORIZED,
-                authException.getMessage() // This will show "Auth Provider unreachable" etc.
+                authException.getMessage()
             );
 
             response.getWriter().write(error.toString());
@@ -316,7 +316,7 @@ public class OAuthProviders
 
         private final String provider;
         private final Secrets secrets;
-        private final OAuthConfig config;
+        private final OAuthProvider config;
         private volatile Map<String,Object> claims;
 
         private final Logger log = LoggerFactory.getLogger(OAuth2Service.class);
@@ -326,7 +326,7 @@ public class OAuthProviders
         {
             this.secrets = secrets;
             this.provider = provider;
-            this.config = OAuthConfig.get(provider);
+            this.config = OAuthProvider.get(provider);
         }
 
 
