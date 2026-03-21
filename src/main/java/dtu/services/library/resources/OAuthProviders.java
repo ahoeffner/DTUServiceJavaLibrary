@@ -11,20 +11,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import dtu.services.library.config.Environment;
 import org.springframework.web.client.RestClient;
 import tools.jackson.dataformat.yaml.YAMLFactory;
+import dtu.services.library.errors.ErrorResponse;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.SecurityFilterChain;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import static jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED;
 import org.springframework.web.context.request.ServletRequestAttributes;
-import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -190,12 +192,10 @@ public class OAuthProviders
             if (delegate == null)
             {
                 services.remove(provider);
-
                 String msg = "Auth Provider '"+provider+"' unreachable";
-                OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR, msg, null);
 
                 log.error(msg);
-                throw new OAuth2AuthenticationException(error,error.getDescription());
+                throw new AuthenticationServiceException(msg);
             }
 
             if (!provider.equals("local"))
@@ -211,6 +211,24 @@ public class OAuthProviders
 
             return(jwt);
         });
+    }
+
+
+    private AuthenticationEntryPoint authEntryPoint()
+    {
+        return (request, response, authException) ->
+        {
+            response.setStatus(SC_UNAUTHORIZED);
+            response.setContentType(APPLICATION_JSON_VALUE);
+
+            ErrorResponse error = new ErrorResponse
+            (
+                UNAUTHORIZED,
+                authException.getMessage() // This will show "Auth Provider unreachable" etc.
+            );
+
+            response.getWriter().write(error.toString());
+        };
     }
 
 
@@ -308,8 +326,8 @@ public class OAuthProviders
 
             // Don't wait forever, 5 seconds should be enough
             SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-            factory.setConnectTimeout(Duration.ofSeconds(5));
-            factory.setReadTimeout(Duration.ofSeconds(5));
+            factory.setConnectTimeout(Duration.ofSeconds(5000));
+            factory.setReadTimeout(Duration.ofSeconds(5000));
             RestTemplate faster = new RestTemplate(factory);
 
             switch (this.type)
@@ -391,13 +409,18 @@ public class OAuthProviders
 
         http
             .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
-            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(dynamicJwtDecoder())))
+            .exceptionHandling(eh -> eh.authenticationEntryPoint(authEntryPoint()))
+
+            .oauth2ResourceServer(oauth ->oauth.jwt(jwt -> jwt.decoder(dynamicJwtDecoder())))
+
             .addFilterAfter((request, response, chain) ->
             {
                 // Run and clean up
                 try {chain.doFilter(request, response);}
                 finally {authentications.remove();}
-            },BearerTokenAuthenticationFilter.class);
+            },
+
+            BearerTokenAuthenticationFilter.class);
 
         return(http.build());
     }
