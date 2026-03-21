@@ -16,16 +16,19 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.core.parameters.P;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 
 
@@ -33,6 +36,10 @@ import org.springframework.security.oauth2.server.resource.web.authentication.Be
 @EnableWebSecurity
 public class OAuthProviders
 {
+    private static final String USER = "X-OAuth-User";
+    private static final String PROVIDER = "X-OAuth-Provider";
+
+
     private Secrets secrets;
     private final Map<String,OAuth2Service> services = new ConcurrentHashMap<>();
     private final ThreadLocal<OAuth2Service[]> authentications = new ThreadLocal<OAuth2Service[]>();
@@ -173,7 +180,7 @@ public class OAuthProviders
             ServletRequestAttributes attrs =
                 (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 
-            provider = attrs.getRequest().getHeader("X-OAuth-Provider");
+            provider = attrs.getRequest().getHeader(PROVIDER);
             if (provider == null || provider.isBlank()) provider = "local";
 
             OAuth2Service service = services.computeIfAbsent(provider, p -> new OAuth2Service(this,secrets,p));
@@ -184,17 +191,20 @@ public class OAuthProviders
             if (delegate == null)
             {
                 services.remove(provider);
-                log.error("Auth Provider unreachable");
-                throw new AuthenticationServiceException("Auth Provider "+provider+" unreachable");
+
+                String msg = "Auth Provider '"+provider+"' unreachable";
+                OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR, msg, null);
+
+                log.error(msg);
+                throw new OAuth2AuthenticationException(error,error.getDescription());
             }
 
             if (!provider.equals("local"))
             {
-                user = attrs.getRequest().getHeader("X-OAuth-User");
+                user = attrs.getRequest().getHeader(USER);
 
                 if (user == null || user.isBlank())
-                    throw new AuthenticationServiceException("missing X-OAuth-User header");
-
+                    throw new AuthenticationServiceException("missing '"+USER+"'' header");
             }
 
             Jwt jwt = delegate.decode(token);
