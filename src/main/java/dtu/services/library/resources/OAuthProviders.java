@@ -2,6 +2,7 @@ package dtu.services.library.resources;
 
 import java.util.Map;
 import org.slf4j.Logger;
+import java.time.Duration;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import tools.jackson.databind.ObjectMapper;
@@ -10,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import dtu.services.library.config.Environment;
 import org.springframework.web.client.RestClient;
 import tools.jackson.dataformat.yaml.YAMLFactory;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.LinkedMultiValueMap;
@@ -18,8 +20,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 
@@ -162,6 +167,7 @@ public class OAuthProviders
     {
         return((token) ->
         {
+            String user = null;
             String provider = null;
 
             ServletRequestAttributes attrs =
@@ -177,8 +183,18 @@ public class OAuthProviders
 
             if (delegate == null)
             {
+                services.remove(provider);
                 log.error("Auth Provider unreachable");
-                throw new IllegalStateException("Auth Provider unreachable");
+                throw new AuthenticationServiceException("Auth Provider "+provider+" unreachable");
+            }
+
+            if (!provider.equals("local"))
+            {
+                user = attrs.getRequest().getHeader("X-OAuth-User");
+
+                if (user == null || user.isBlank())
+                    throw new AuthenticationServiceException("missing X-OAuth-User header");
+
             }
 
             Jwt jwt = delegate.decode(token);
@@ -222,11 +238,7 @@ public class OAuthProviders
             this.provider = provider;
 
             try {this.loadConfig();}
-            catch (Exception e)
-            {
-                log.error("Unable to initialize OAuth service for provider {}: {}", provider, e.getMessage());
-                throw new IllegalStateException("Failed to initialize provider", e);
-            }
+            catch (Exception e) {log.error("Unable to initialize OAuth service for provider {}: {}", provider, e.getMessage());}
         }
 
 
@@ -285,14 +297,22 @@ public class OAuthProviders
             this.tokenpath = (String) this.config.get("token-endpoint");
             this.publicpath = (String) this.config.get("public-endpoint");
 
+            // Don't wait forever, 5 seconds should be enough
+            SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+            factory.setConnectTimeout(Duration.ofSeconds(5));
+            factory.setReadTimeout(Duration.ofSeconds(5));
+            RestTemplate faster = new RestTemplate(factory);
+
             switch (this.type)
             {
                 case "oracle":
-                    this.decoder = NimbusJwtDecoder.withJwkSetUri(this.issuer).build();
+                    this.decoder = NimbusJwtDecoder.withJwkSetUri(this.issuer)
+                    .restOperations(faster).build();
                     break;
 
                 default:
-                    this.decoder = NimbusJwtDecoder.withIssuerLocation(this.issuer).build();
+                    this.decoder = NimbusJwtDecoder.withIssuerLocation(this.issuer)
+                    .restOperations(faster).build();
                     break;
             }
         }
