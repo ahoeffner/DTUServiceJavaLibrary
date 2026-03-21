@@ -1,8 +1,10 @@
 package dtu.services.library.resources;
 
 import java.util.Map;
+import java.util.List;
 import org.slf4j.Logger;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -146,26 +148,61 @@ public class OAuthProviders
     }
 
 
-    @SuppressWarnings("unchecked")
-    public String[] getRoles()
+    public List<String> getRequestedRoles()
+    {
+        return(getRequestedRoles((List<String>) null));
+    }
+
+
+    public List<String> getRequestedRoles(String[] roles)
+    {
+        if (roles != null) return(getRequestedRoles(List.of(roles)));
+        return(getRequestedRoles((List<String>) null));
+    }
+
+
+    public List<String> getRequestedRoles(List<String> roles)
     {
         State state = authentications.get();
 
-        if (state == null || state.in() == null || state.in().claims == null)
-            return(new String[0]);
+        if (state == null || state.in() == null)
+            return(new ArrayList<String>());
 
-        if (state.in().config.type.equals("keycloak"))
+        if (roles != null)
+            state.setRoles(roles);
+
+        List<String> avail = state.in.getRoles();
+        List<String> requested = state.getRoles();
+
+        if (avail == null)
+            return(new ArrayList<String>());
+
+        if (requested == null)
+            return(avail);
+
+        List<String> missing = avail.stream().filter(role -> !requested.contains(role)).toList();
+
+        if (missing.size() > 0)
         {
-            Map<String, Object> realmAccess = (Map<String, Object>) state.in().claims.get("realm_access");
-
-            if (realmAccess != null && realmAccess.containsKey("roles"))
-            {
-                java.util.List<String> roles = (java.util.List<String>) realmAccess.get("roles");
-                return(roles.toArray(new String[0]));
-            }
+            log.error("Roles requested but not granted: {}",missing.toString());
+            throw new AuthenticationServiceException("Roles requested but not granted: "+missing);
         }
 
-        return(new String[0]);
+        return(requested);
+    }
+
+
+    public void setRequestedRoles(List<String> roles)
+    {
+        State state = authentications.get();
+
+        if (state == null)
+        {
+            state = new State();
+            authentications.set(new State());
+        }
+
+        state.setRoles(roles);
     }
 
 
@@ -242,6 +279,7 @@ public class OAuthProviders
     {
         private OAuth2Service in = null;
         private OAuth2Service out = null;
+        private List<String> roles = null;
         private Hashtable<String,OAuth2Service> services = new Hashtable<String,OAuth2Service>();
 
 
@@ -295,6 +333,19 @@ public class OAuthProviders
             this.out = service;
             return(this);
         }
+
+
+        public List<String> getRoles()
+        {
+            return(this.roles);
+        }
+
+
+        public State setRoles(List<String> roles)
+        {
+            this.roles = roles;
+            return(this);
+        }
     }
 
 
@@ -305,9 +356,12 @@ public class OAuthProviders
         private final OAuthProvider config;
 
         private volatile long expiryTime = 0;
+
         private volatile String token = null;
         private volatile String cached = null;
+
         private volatile Map<String,Object> claims;
+        private volatile List<String> roles = null;
 
         private final Logger log = LoggerFactory.getLogger(OAuth2Service.class);
 
@@ -317,6 +371,12 @@ public class OAuthProviders
             this.secrets = secrets;
             this.provider = provider;
             this.config = OAuthProvider.get(provider);
+        }
+
+
+        List<String> getRoles()
+        {
+            return(this.roles);
         }
 
 
@@ -332,11 +392,22 @@ public class OAuthProviders
         }
 
 
+        @SuppressWarnings("unchecked")
         OAuth2Service claims(Map<String,Object> claims)
         {
             this.claims = claims;
+
+            if (config.type.equals("keycloak"))
+            {
+                Map<String,Object> access = (Map<String,Object>) claims.get("realm_access");
+
+                if (access != null && access.containsKey("roles"))
+                    this.roles = (List<String>) access.get("roles");
+            }
+
             return(this);
         }
+
 
         OAuth2Service setServiceToken(String token, Instant expiresAt)
         {
@@ -393,7 +464,7 @@ public class OAuthProviders
                     this.expiryTime = System.currentTimeMillis() + (expiresIn.longValue() * 1000) - 60000;
 
                 if (config.decoder != null)
-                    this.claims = config.decoder.decode(this.token).getClaims();
+                    this.claims(config.decoder.decode(this.token).getClaims());
 
                 this.cached = this.token;
                 return(this.token);
