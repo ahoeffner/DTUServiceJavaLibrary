@@ -2,17 +2,13 @@ package dtu.services.library.resources;
 
 import java.util.Map;
 import org.slf4j.Logger;
-import java.time.Duration;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
-import tools.jackson.databind.ObjectMapper;
 import org.springframework.util.MultiValueMap;
-import java.util.concurrent.ConcurrentHashMap;
 import dtu.services.library.config.Environment;
+import dtu.services.library.config.OAuthConfig;
 import org.springframework.web.client.RestClient;
-import tools.jackson.dataformat.yaml.YAMLFactory;
 import dtu.services.library.errors.ErrorResponse;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.LinkedMultiValueMap;
@@ -20,10 +16,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.web.SecurityFilterChain;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import static jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
@@ -37,14 +31,13 @@ import org.springframework.security.oauth2.server.resource.web.authentication.Be
 @EnableWebSecurity
 public class OAuthProviders
 {
+    private final Secrets secrets;
+
     private static final String USER = "X-OAuth-User";
     private static final String PROVIDER = "X-OAuth-Provider";
 
-
-    private Secrets secrets;
-    private final Map<String,OAuth2Service> services = new ConcurrentHashMap<>();
-    private final ThreadLocal<OAuth2Service[]> authentications = new ThreadLocal<OAuth2Service[]>();
     private final Logger log = LoggerFactory.getLogger(OAuthProviders.class);
+    private final ThreadLocal<OAuth2Service[]> authentications = new ThreadLocal<OAuth2Service[]>();
 
 
     OAuthProviders(Secrets secrets)
@@ -79,7 +72,7 @@ public class OAuthProviders
 
     public String setOutgoing(String provider)
     {
-        OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(this,secrets,p));
+        OAuth2Service service = new OAuth2Service(this,secrets,provider);
         String actkn = service.getServiceToken();
 
         if (authentications.get() != null) authentications.get()[1] = service;
@@ -95,7 +88,7 @@ public class OAuthProviders
             authentications.set(new OAuth2Service[]{local(),null});
 
         OAuth2Service service = authentications.get()[0];
-        return((String) service.exposed());
+        return((String) service.config.publicpath);
     }
 
 
@@ -105,7 +98,7 @@ public class OAuthProviders
             authentications.set(new OAuth2Service[]{local(),null});
 
         OAuth2Service service = authentications.get()[0];
-        return((String) service.config.get("token-endpoint"));
+        return((String) service.config.tokenpath);
     }
 
 
@@ -115,7 +108,7 @@ public class OAuthProviders
             authentications.set(new OAuth2Service[]{null,local()});
 
         OAuth2Service service = authentications.get()[1];
-        return((String) service.config.get("token-endpoint"));
+        return((String) service.config.tokenpath);
     }
 
 
@@ -128,7 +121,7 @@ public class OAuthProviders
         if (auths == null || auths[0] == null || auths[0].claims == null)
             return(user);
 
-        if (auths[0].type().equals("keycloak"))
+        if (auths[0].config.type.equals("keycloak"))
         {
             user = (String) auths[0].claims.get("preferred_username");
             if (user == null) user = (String) auths[0].claims.get("sub");
@@ -148,7 +141,7 @@ public class OAuthProviders
         OAuth2Service service = authentications.get()[0];
         if (service == null || service.claims == null) return(new String[0]);
 
-        if (service.type().equals("keycloak"))
+        if (service.config.type.equals("keycloak"))
         {
             Map<String, Object> realmAccess = (Map<String, Object>) service.claims.get("realm_access");
 
@@ -166,7 +159,7 @@ public class OAuthProviders
     private OAuth2Service local()
     {
         String provider = "local";
-        OAuth2Service service = services.computeIfAbsent(provider,p->new OAuth2Service(this,secrets,p));
+        OAuth2Service service = new OAuth2Service(this,secrets,provider);
         return(service);
     }
 
@@ -184,16 +177,14 @@ public class OAuthProviders
             provider = attrs.getRequest().getHeader(PROVIDER);
             if (provider == null || provider.isBlank()) provider = "local";
 
-            OAuth2Service service = services.computeIfAbsent(provider, p -> new OAuth2Service(this,secrets,p));
+            OAuth2Service service = new OAuth2Service(this,secrets,provider);
             authentications.set(new OAuth2Service[]{service, null});
 
             JwtDecoder delegate = service.getDecoder();
 
             if (delegate == null)
             {
-                services.remove(provider);
                 String msg = "Auth Provider '"+provider+"' unreachable";
-
                 log.error(msg);
                 throw new AuthenticationServiceException(msg);
             }
@@ -234,56 +225,22 @@ public class OAuthProviders
 
     static class OAuth2Service
     {
-        private String type;
-        private String scope;
-        private String secret;
-        private String issuer;
-        private String clientid;
-        private String tokenpath;
-        private String publicpath;
-
         private volatile long expiryTime = 0;
         private volatile String cached = null;
 
         private final String provider;
         private final Secrets secrets;
-        private final OAuthProviders parent;
-
-        private Map<String,Object> config;
-        private volatile JwtDecoder decoder;
+        private final OAuthConfig config;
         private volatile Map<String,Object> claims;
 
-        private final RestClient restclient = RestClient.create();
-        private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         private final Logger log = LoggerFactory.getLogger(OAuth2Service.class);
 
 
         OAuth2Service(OAuthProviders parent, Secrets secrets, String provider)
         {
-            this.parent = parent;
             this.secrets = secrets;
             this.provider = provider;
-
-            try {this.loadConfig();}
-            catch (Exception e) {log.error("Unable to initialize OAuth service for provider {}: {}", provider, e.getMessage());}
-        }
-
-
-        public String type()
-        {
-            return(this.type);
-        }
-
-
-        public String issuer()
-        {
-            return(this.issuer);
-        }
-
-
-        public String exposed()
-        {
-            return(this.publicpath);
+            this.config = OAuthConfig.get(provider);
         }
 
 
@@ -295,53 +252,7 @@ public class OAuthProviders
 
         public JwtDecoder getDecoder()
         {
-            return(this.decoder);
-        }
-
-
-        @SuppressWarnings("unchecked")
-        private void loadConfig()
-        {
-            String uri = Environment.OAUTH_URL + "/" + provider + ".yaml";
-
-            String config = restclient
-                .get()
-                .uri(uri)
-                .retrieve()
-                .body(String.class);
-
-            this.config = mapper.readValue(config,Map.class);
-
-            this.config = (Map<String,Object>) this.config.get("oauth2");
-            if (this.config == null) throw new IllegalArgumentException("Missing 'oauth2' key");
-
-            this.config = (Map<String,Object>) this.config.get(Environment.TYPE);
-            if (this.config == null) throw new IllegalArgumentException("Missing 'oauth2/"+Environment.TYPE+"' key");
-
-            this.type = (String) this.config.get("type");
-            this.scope = (String) this.config.get("scope");
-            this.issuer = (String) this.config.get("issuer-uri");
-            this.tokenpath = (String) this.config.get("token-endpoint");
-            this.publicpath = (String) this.config.get("public-endpoint");
-
-            // Don't wait forever, 5 seconds should be enough
-            SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-            factory.setConnectTimeout(Duration.ofSeconds(5000));
-            factory.setReadTimeout(Duration.ofSeconds(5000));
-            RestTemplate faster = new RestTemplate(factory);
-
-            switch (this.type)
-            {
-                case "oracle":
-                    this.decoder = NimbusJwtDecoder.withJwkSetUri(this.issuer)
-                    .restOperations(faster).build();
-                    break;
-
-                default:
-                    this.decoder = NimbusJwtDecoder.withIssuerLocation(this.issuer)
-                    .restOperations(faster).build();
-                    break;
-            }
+            return(this.config.decoder);
         }
 
 
@@ -361,21 +272,20 @@ public class OAuthProviders
                 if (auth == null)
                 {
                     log.error("No secrets found for {}",provider);
-                    parent.services.remove(provider);
                     return(null);
                 }
 
-                secret = (String) auth.get("client-secret");
-                clientid = (String) auth.get("client-id");
+                String secret = (String) auth.get("client-secret");
+                String clientid = (String) auth.get("client-id");
 
                 RestClient client = RestClient.create();
                 MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
 
-                formData.add("scope", scope);
+                formData.add("scope",config.scope);
                 formData.add("grant_type", "client_credentials");
 
                 Map<String, Object> response = client.post()
-                        .uri(tokenpath)
+                        .uri(config.tokenpath)
                         .headers(headers -> headers.setBasicAuth(clientid,secret))
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                         .body(formData)
@@ -388,8 +298,8 @@ public class OAuthProviders
                 if (expiresIn != null)
                     this.expiryTime = System.currentTimeMillis() + (expiresIn.longValue() * 1000) - 60000;
 
-                if (decoder != null)
-                    this.claims = decoder.decode(actkn).getClaims();
+                if (config.decoder != null)
+                    this.claims = config.decoder.decode(actkn).getClaims();
 
                 this.cached = actkn;
                 return(actkn);
@@ -401,6 +311,7 @@ public class OAuthProviders
             }
         }
     }
+
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception
