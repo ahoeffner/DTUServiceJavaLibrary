@@ -58,22 +58,15 @@ public class ResponseInterceptor implements ClientHttpRequestInterceptor
      */
     private String resolveToken()
     {
-        String in = providers.getIncoming();
-        String out = providers.getOutgoing();
+        String in = providers.getIncomingProvider();
+        String out = providers.getOutgoingProvider();
 
         // Scenario A: Use the incoming User's token
         if (out == null || (in != null && in.equals(out)))
-        {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-
-            if (auth instanceof JwtAuthenticationToken jwtAuth)
-                return(jwtAuth.getToken().getTokenValue());
-
-            return(null);
-        }
+            return(providers.getIncomingToken());
 
         // Scenario B: Use the Service-to-Service token (Client Credentials)
         // (Happens if Scenario A didn't apply or didn't find a user token)
-        return(providers.getToken());
+        return(providers.getOutgoingToken());
     }
 }

@@ -47,36 +47,6 @@ public class OAuthProviders
     }
 
 
-    public String getToken()
-    {
-        State state = authentications.get();
-
-        if (state == null || state.out() == null)
-            return(null);
-
-        return(state.out().getServiceToken());
-    }
-
-
-    public String getIncoming()
-    {
-        State state = authentications.get();
-        if (state == null || state.in() == null) return(null);
-        return(state.in().provider);
-    }
-
-
-    public String getOutgoing()
-    {
-        State state  = authentications.get();
-
-        if (state == null || state.out() == null)
-            return(null);
-
-        return(state.out().provider);
-    }
-
-
     public String setOutgoing(String provider)
     {
         OAuth2Service service = null;
@@ -100,6 +70,47 @@ public class OAuthProviders
     }
 
 
+    public String getIncomingToken()
+    {
+        State state = authentications.get();
+
+        if (state == null || state.in() == null)
+            return(null);
+
+        return(state.in().getServiceToken());
+    }
+
+
+    public String getOutgoingToken()
+    {
+        State state = authentications.get();
+
+        if (state == null || state.out() == null)
+            return(null);
+
+        return(state.out().getServiceToken());
+    }
+
+
+    public String getIncomingProvider()
+    {
+        State state = authentications.get();
+        if (state == null || state.in() == null) return(null);
+        return(state.in().provider);
+    }
+
+
+    public String getOutgoingProvider()
+    {
+        State state  = authentications.get();
+
+        if (state == null || state.out() == null)
+            return(null);
+
+        return(state.out().provider);
+    }
+
+
     public String getExposedEndpoint()
     {
         State state  = authentications.get();
@@ -111,31 +122,6 @@ public class OAuthProviders
         }
 
         return(state.in().config.publicpath);
-    }
-
-
-    public String getIncomingTokenUrl()
-    {
-        State state  = authentications.get();
-
-        if (state == null || state.in() == null)
-        {
-            state = new State(local(),null);
-            authentications.set(state);
-        }
-
-        return(state.in().config.tokenpath);
-    }
-
-
-    public String getOutgoingTokenUrl()
-    {
-        State state  = authentications.get();
-
-        if (state == null || state.out() == null)
-            return(null);
-
-        return(state.out().config.tokenpath);
     }
 
 
@@ -224,6 +210,8 @@ public class OAuthProviders
             }
 
             Jwt jwt = delegate.decode(token);
+
+            service.token = token;
             service.claims = jwt.getClaims();
 
             return(jwt);
@@ -311,12 +299,13 @@ public class OAuthProviders
 
     static class OAuth2Service
     {
-        private volatile long expiryTime = 0;
-        private volatile String cached = null;
-
         private final String provider;
         private final Secrets secrets;
         private final OAuthProvider config;
+
+        private volatile long expiryTime = 0;
+        private volatile String token = null;
+        private volatile String cached = null;
         private volatile Map<String,Object> claims;
 
         private final Logger log = LoggerFactory.getLogger(OAuth2Service.class);
@@ -378,17 +367,17 @@ public class OAuthProviders
                         .retrieve()
                         .body(Map.class);
 
-                String actkn = (String) response.get("access_token");
+                this.token = (String) response.get("access_token");
                 Number expiresIn = (Number) response.get("expires_in");
 
                 if (expiresIn != null)
                     this.expiryTime = System.currentTimeMillis() + (expiresIn.longValue() * 1000) - 60000;
 
                 if (config.decoder != null)
-                    this.claims = config.decoder.decode(actkn).getClaims();
+                    this.claims = config.decoder.decode(this.token).getClaims();
 
-                this.cached = actkn;
-                return(actkn);
+                this.cached = this.token;
+                return(this.token);
             }
             catch (Exception e)
             {
