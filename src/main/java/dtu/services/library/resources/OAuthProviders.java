@@ -2,6 +2,7 @@ package dtu.services.library.resources;
 
 import java.util.Map;
 import org.slf4j.Logger;
+import java.time.Instant;
 import java.util.Hashtable;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -211,8 +212,8 @@ public class OAuthProviders
 
             Jwt jwt = delegate.decode(token);
 
-            service.token = token;
-            service.claims = jwt.getClaims();
+            service.claims(jwt.getClaims());
+            service.setServiceToken(token,jwt.getExpiresAt());
 
             return(jwt);
         });
@@ -319,15 +320,33 @@ public class OAuthProviders
         }
 
 
+        JwtDecoder getDecoder()
+        {
+            return(this.config.decoder);
+        }
+
+
         Map<String,Object> claims()
         {
             return(this.claims);
         }
 
 
-        public JwtDecoder getDecoder()
+        OAuth2Service claims(Map<String,Object> claims)
         {
-            return(this.config.decoder);
+            this.claims = claims;
+            return(this);
+        }
+
+        OAuth2Service setServiceToken(String token, Instant expiresAt)
+        {
+            this.token = token;
+            this.cached = token;
+
+            if (expiresAt == null) this.expiryTime = 0;
+            else this.expiryTime = expiresAt.toEpochMilli() - 60000;
+
+            return(this);
         }
 
 
