@@ -2,6 +2,7 @@ package dtu.services.library.resources;
 
 import java.util.Map;
 import org.slf4j.Logger;
+import java.util.Hashtable;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.util.MultiValueMap;
@@ -36,8 +37,8 @@ public class OAuthProviders
     private static final String USER = "X-OAuth-User";
     private static final String PROVIDER = "X-OAuth-Provider";
 
+    private final ThreadLocal<State> authentications = new ThreadLocal<State>();
     private final Logger log = LoggerFactory.getLogger(OAuthProviders.class);
-    private final ThreadLocal<OAuth2Service[]> authentications = new ThreadLocal<OAuth2Service[]>();
 
 
     OAuthProviders(Secrets secrets)
@@ -48,35 +49,52 @@ public class OAuthProviders
 
     public String getToken()
     {
-        OAuth2Service[] services = authentications.get();
-        if (services == null || services[1] == null) return(null);
-        return(services[1].getServiceToken());
+        State state = authentications.get();
+
+        if (state == null || state.out() == null)
+            return(null);
+
+        return(state.out().getServiceToken());
     }
 
 
     public String getIncoming()
     {
-        OAuth2Service[] services = authentications.get();
-        if (services == null || services[0] == null) return(null);
-        return(services[0].provider);
+        State state = authentications.get();
+        if (state == null || state.in() == null) return(null);
+        return(state.in().provider);
     }
 
 
     public String getOutgoing()
     {
-        OAuth2Service[] services = authentications.get();
-        if (services == null || services[1] == null) return(null);
-        return(services[1].provider);
+        State state  = authentications.get();
+
+        if (state == null || state.out() == null)
+            return(null);
+
+        return(state.out().provider);
     }
 
 
     public String setOutgoing(String provider)
     {
-        OAuth2Service service = new OAuth2Service(this,secrets,provider);
-        String actkn = service.getServiceToken();
+        OAuth2Service service = null;
+        State state  = authentications.get();
 
-        if (authentications.get() != null) authentications.get()[1] = service;
-        else authentications.set(new OAuth2Service[]{null,service});
+        if (state == null)
+        {
+            state = new State();
+            authentications.set(state);
+        }
+
+        service = state.get(provider);
+
+        if (service == null)
+            service = new OAuth2Service(this,secrets,provider);
+
+        String actkn = service.getServiceToken();
+        state.out(service);
 
         return(actkn);
     }
@@ -84,48 +102,57 @@ public class OAuthProviders
 
     public String getExposedEndpoint()
     {
-        if (authentications.get() == null)
-            authentications.set(new OAuth2Service[]{local(),null});
+        State state  = authentications.get();
 
-        OAuth2Service service = authentications.get()[0];
-        return((String) service.config.publicpath);
+        if (state == null || state.in() == null)
+        {
+            state = new State(local(),null);
+            authentications.set(state);
+        }
+
+        return(state.in().config.publicpath);
     }
 
 
     public String getIncomingTokenUrl()
     {
-        if (authentications.get() == null)
-            authentications.set(new OAuth2Service[]{local(),null});
+        State state  = authentications.get();
 
-        OAuth2Service service = authentications.get()[0];
-        return((String) service.config.tokenpath);
+        if (state == null || state.in() == null)
+        {
+            state = new State(local(),null);
+            authentications.set(state);
+        }
+
+        return(state.in().config.tokenpath);
     }
 
 
     public String getOutgoingTokenUrl()
     {
-        if (authentications.get() == null)
-            authentications.set(new OAuth2Service[]{null,local()});
+        State state  = authentications.get();
 
-        OAuth2Service service = authentications.get()[1];
-        return((String) service.config.tokenpath);
+        if (state == null || state.out() == null)
+            return(null);
+
+        return(state.out().config.tokenpath);
     }
 
 
     public String getUser()
     {
         String user = "anonymous";
+        State state = authentications.get();
 
-        OAuth2Service[] auths = authentications.get();
-
-        if (auths == null || auths[0] == null || auths[0].claims == null)
+        if (state == null || state.in() == null || state.in().claims == null)
             return(user);
 
-        if (auths[0].config.type.equals("keycloak"))
+
+        if (state.in().config.type.equals("keycloak"))
         {
-            user = (String) auths[0].claims.get("preferred_username");
-            if (user == null) user = (String) auths[0].claims.get("sub");
-            if (user == null) user = (String) auths[0].claims.get("email");
+            user = (String) state.in().claims.get("preferred_username");
+            if (user == null) user = (String) state.in().claims.get("sub");
+            if (user == null) user = (String) state.in().claims.get("email");
         }
 
         return((user == null) ? "anonymous" : user);
@@ -135,15 +162,14 @@ public class OAuthProviders
     @SuppressWarnings("unchecked")
     public String[] getRoles()
     {
-        if (authentications.get() == null)
-            return(null);
+        State state = authentications.get();
 
-        OAuth2Service service = authentications.get()[0];
-        if (service == null || service.claims == null) return(new String[0]);
+        if (state == null || state.in() == null || state.in().claims == null)
+            return(new String[0]);
 
-        if (service.config.type.equals("keycloak"))
+        if (state.in().config.type.equals("keycloak"))
         {
-            Map<String, Object> realmAccess = (Map<String, Object>) service.claims.get("realm_access");
+            Map<String, Object> realmAccess = (Map<String, Object>) state.in().claims.get("realm_access");
 
             if (realmAccess != null && realmAccess.containsKey("roles"))
             {
@@ -178,7 +204,7 @@ public class OAuthProviders
             if (provider == null || provider.isBlank()) provider = "local";
 
             OAuth2Service service = new OAuth2Service(this,secrets,provider);
-            authentications.set(new OAuth2Service[]{service, null});
+            authentications.set(new State(service, null));
 
             JwtDecoder delegate = service.getDecoder();
 
@@ -220,6 +246,66 @@ public class OAuthProviders
 
             response.getWriter().write(error.toString());
         };
+    }
+
+
+    static class State
+    {
+        private OAuth2Service in = null;
+        private OAuth2Service out = null;
+        private Hashtable<String,OAuth2Service> services = new Hashtable<String,OAuth2Service>();
+
+
+        State()
+        {
+            this(null,null);
+        }
+
+
+
+        State(OAuth2Service in, OAuth2Service out)
+        {
+            this.in = in;
+            this.out = out;
+        }
+
+
+        public OAuth2Service out()
+        {
+            return(this.out);
+        }
+
+
+        public OAuth2Service in()
+        {
+            return(this.in);
+        }
+
+
+        public OAuth2Service get(String provider)
+        {
+            return(this.services.get(provider));
+        }
+
+
+        public State in(OAuth2Service service)
+        {
+            this.in = service;
+            return(this);
+        }
+
+
+        public State out(OAuth2Service service)
+        {
+            if (service == out)
+                return(this);
+
+            if (this.out != null)
+                this.services.put(this.out.provider,this.out);
+
+            this.out = service;
+            return(this);
+        }
     }
 
 
