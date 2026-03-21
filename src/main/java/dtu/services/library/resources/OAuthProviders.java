@@ -28,7 +28,6 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.parameters.P;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 
 
