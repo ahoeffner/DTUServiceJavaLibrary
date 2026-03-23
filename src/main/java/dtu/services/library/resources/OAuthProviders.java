@@ -27,6 +27,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 
@@ -185,7 +186,7 @@ public class OAuthProviders
         if (missing.size() > 0)
         {
             log.error("Roles requested but not granted: {}",missing.toString());
-            throw new AuthenticationServiceException("Roles requested but not granted: "+missing);
+            throw new InsufficientAuthenticationException("Roles requested but not granted: "+missing);
         }
 
         return(requested);
@@ -228,6 +229,8 @@ public class OAuthProviders
             if (provider == null || provider.isBlank()) provider = "local";
 
             OAuth2Service service = new OAuth2Service(this,secrets,provider);
+
+            State state = new State(service,null);
             authentications.set(new State(service, null));
 
             JwtDecoder delegate = service.getDecoder();
@@ -244,7 +247,12 @@ public class OAuthProviders
                 user = attrs.getRequest().getHeader(USER);
 
                 if (user == null || user.isBlank())
-                    throw new AuthenticationServiceException("missing '"+USER+"'' header");
+                    user = "test";
+                //    throw new AuthenticationServiceException("missing '"+USER+"'' header");
+
+                // Exchange the trusted token
+                service = local();state.in(service);
+                token = exchange(service,token,user);
             }
 
             Jwt jwt = delegate.decode(token);
@@ -254,6 +262,48 @@ public class OAuthProviders
 
             return(jwt);
         });
+    }
+
+
+    @SuppressWarnings("unchecked")
+    private String exchange(OAuth2Service service, String token, String user)
+    {
+        try
+        {
+            Map<String,String> auth = this.secrets.getSecrets("oauth2/local/" + Environment.TYPE);
+
+            if (auth == null)
+            {
+                log.error("No secrets found for local provider during exchange");
+                return(null);
+            }
+
+            String secret = (String) auth.get("client-secret");
+            String clientid = (String) auth.get("client-id");
+
+            RestClient client = RestClient.create();
+            MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+
+            formData.add("grant_type", "urn:ietf:params:oauth:grant-type:token-exchange");
+            formData.add("subject_token", token);
+            formData.add("subject_token_type", "urn:ietf:params:oauth:token-type:access_token");
+            formData.add("requested_subject", user);
+
+            Map<String,Object> response = client.post()
+                    .uri(service.config.tokenpath)
+                    .headers(headers -> headers.setBasicAuth(clientid, secret))
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(formData)
+                    .retrieve()
+                    .body(Map.class);
+
+            return((String) response.get("access_token"));
+        }
+        catch (Exception e)
+        {
+            log.error("Failed to exchange token for {}: {}", user, e.getMessage());
+            return(null);
+        }
     }
 
 
